@@ -1,0 +1,1 @@
+#JingleMiner_BTC_Solo_Lite
