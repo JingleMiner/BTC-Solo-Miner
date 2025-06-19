@@ -5,11 +5,5 @@ setlocal enabledelayedexpansion
 set BOARD=NERDQAXEPLUS2
 idf.py set-target esp32s3
 idf.py build
-
-REM generate_config.bat
-REM create_bin.bat
-
-REM esptool.py --chip esp32s3 merge_bin --flash_mode dio --flash_size 16MB --flash_freq 80m 0x0 build\bootloader\bootloader.bin 0x8000 build\partition_table\partition-table.bin 0x9000 .\config.bin 0x10000 build\esp-miner.bin 0x410000 build\www.bin 0xf10000 build\ota_data_initial.bin -o nerdqaxeplus.bin
 esptool.py --chip esp32s3 merge_bin --flash_mode dio --flash_size 16MB --flash_freq 80m 0x0 build\bootloader\bootloader.bin 0x8000 build\partition_table\partition-table.bin 0x10000 build\esp-miner.bin 0x410000 build\www.bin 0xf10000 build\ota_data_initial.bin -o nerdqaxeplus.bin
-
 bitaxetool --config config.cvs --firmware nerdqaxeplus.bin

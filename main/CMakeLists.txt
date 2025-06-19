@@ -1,3 +1,34 @@
+# Set compiler definitions based on board type
+set(BOARD_DEFINITIONS "")
+if("$ENV{BOARD}" STREQUAL "NERDQAXEPLUS2")
+    set(BOARD_DEFINITIONS "NERDQAXEPLUS2")
+    message(STATUS "Building for NERDQAXEPLUS2")
+elseif("$ENV{BOARD}" STREQUAL "NERDQAXEPLUS")
+    set(BOARD_DEFINITIONS "NERDQAXEPLUS")
+    message(STATUS "Building for NERDQAXEPLUS")
+elseif("$ENV{BOARD}" STREQUAL "NERDOCTAXEPLUS")
+    set(BOARD_DEFINITIONS "NERDOCTAXEPLUS")
+    message(STATUS "Building for NERDOCTAXEPLUS")
+elseif("$ENV{BOARD}" STREQUAL "NERDAXE")
+    set(BOARD_DEFINITIONS "NERDAXE")
+    message(STATUS "Building for NERDAXE")
+elseif("$ENV{BOARD}" STREQUAL "NERDOCTAXEGAMMA")
+    set(BOARD_DEFINITIONS "NERDOCTAXEGAMMA")
+    message(STATUS "Building for NERDOCTAXEGAMMA")
+elseif("$ENV{BOARD}" STREQUAL "NERDAXEGAMMA")
+    set(BOARD_DEFINITIONS "NERDAXEGAMMA")
+    message(STATUS "Building for NERDAXEGAMMA")
+elseif("$ENV{BOARD}" STREQUAL "NERDHAXEGAMMA")
+    set(BOARD_DEFINITIONS "NERDHAXEGAMMA")
+    message(STATUS "Building for NERDHAXEGAMMA")
+elseif("$ENV{BOARD}" STREQUAL "NERDEKO")
+    set(BOARD_DEFINITIONS "NERDEKO")
+    message(STATUS "Building for NERDEKO")
+else()
+    set(BOARD_DEFINITIONS "NERDQAXEPLUS")
+    message(STATUS "Building for default NERDQAXEPLUS")
+endif()
+
 idf_component_register(
 SRCS
     "main.cpp"
@@ -74,7 +105,7 @@ INCLUDE_DIRS
     "../components/influx/include"
     "../components/stratum/include"
 
-    PRIV_REQUIRES
+PRIV_REQUIRES
     "app_update"
     "driver"
     "esp_adc"
@@ -96,6 +127,8 @@ INCLUDE_DIRS
     "lwip"
 )
 
+# Set the compile definition after component registration
+target_compile_definitions(${COMPONENT_LIB} PRIVATE ${BOARD_DEFINITIONS})
 
 set(WEB_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/http_server/axe-os")
 
