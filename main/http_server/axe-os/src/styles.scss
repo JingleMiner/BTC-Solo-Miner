@@ -1,3 +1,139 @@
 /* You can add global styles to this file, and also import other style files */
+a {
+    color: #FFD200 !important;
+    text-decoration: none !important;
+}
 
+/* 自定义背景色和卡片颜色 - 直接CSS覆盖 */
+nb-layout {
+  background-color: #1a1a2e !important; /* 主背景色 - 深蓝色 */
+}
 
+nb-layout-column {
+  background-color: #1a1a2e !important; /* 布局列背景色 */
+}
+
+nb-card {
+  background-color: #16213e !important; /* 卡片背景色 - 稍浅的蓝色 */
+  border: 1px solid #2d3561 !important; /* 卡片边框色 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important; /* 增强阴影效果 */
+}
+
+nb-card nb-card-header {
+  background-color: #16213e !important; /* 卡片头部背景色 */
+  border-bottom: 1px solid #2d3561 !important; /* 卡片头部边框 */
+}
+
+nb-card nb-card-body {
+  background-color: #16213e !important; /* 卡片内容背景色 */
+}
+
+/* 确保文字在深色背景上可读 */
+nb-card {
+  color: #ffffff !important;
+}
+
+nb-card .text-hint {
+  color: #a0a0a0 !important;
+}
+
+nb-tabset .tab.active .tab-link {
+    color: #FFD200 !important;
+}
+
+nb-layout-header {
+    background-color: #272727 !important;
+}
+
+[nbInput].status-basic {
+    background-color: #272727 !important;
+    border: none;
+}
+
+nb-select.appearance-outline.status-basic .select-button {
+    background-color: #272727 !important;
+    border: none;
+}
+
+[_nghost-ng-c3264290986] .progress-foreground[_ngcontent-ng-c3264290986] {
+    background-color: #FFD200;
+}
+
+nb-sidebar {
+    background-color: #383838 !important;
+}
+
+nb-card {
+    background-color: #383838 !important;
+    border: 1px solid #383838 !important;
+}
+
+nb-card nb-card-header {
+    background-color: #383838 !important;
+    border-bottom: 1px solid #383838 !important;
+    color: #FFD200;
+}
+
+nb-card nb-card-header span {
+    color: #ffffff;
+}
+
+nb-card nb-card-body {
+    background-color: #383838 !important;
+}
+
+[nbButton].appearance-filled.status-primary, .appearance-filled.status-primary[nbButtonToggle] {
+    background-color: #FFD200;
+    color: #272727;
+}
+
+nb-menu .menu-item a.active .menu-title {
+    color: #FFD200;
+}
+
+nb-menu .menu-item a.active .menu-icon {
+    color: #FFD200;
+}
+
+nb-menu .menu-item .menu-icon {
+    color: #ffffff;
+}
+
+nb-menu .menu-item .menu-title {
+    color: #ffffff;
+}
+
+nb-menu .menu-item:hover > .menu-icon {
+    color: #FFD200 !important;
+}
+
+nb-menu .menu-item:hover > .menu-title {
+    color: #FFD200 !important;
+}
+
+nb-select.appearance-outline.status-primary .select-button {
+    background-color: #ffd2001f !important;
+    border-color: #FFD200 !important;
+}
+
+nb-layout-column {
+    background-color: #272727 !important;
+}
+
+nb-layout .layout .layout-container .content nb-layout-footer nav {
+    background-color: #383838 !important;
+}
+
+.text-success {
+    color: #FFD200 !important;
+}
+
+nb-badge.status-success {
+    color: #272727;
+    background-color: #FFD200;
+}
+
+nb-checkbox.status-basic .custom-checkbox.checked {
+    background-color: #FFD200;
+    border-color: #FFD200;
+}

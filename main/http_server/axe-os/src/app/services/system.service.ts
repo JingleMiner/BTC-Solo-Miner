@@ -30,7 +30,7 @@ const defaultInfo: ISystemInfo = {
   coreVoltage: 1200,
   defaultCoreVoltage: 1200,
   coreVoltageActual: 1200,
-  hostname: "Bitaxe",
+  hostname: "JingleMiner",
   hostip: "192.168.0.123",
   macAddr: "DE:AD:C0:DE:0B:7C",
   ssid: "default",
@@ -42,10 +42,10 @@ const defaultInfo: ISystemInfo = {
   asicCount: 1,
   smallCoreCount: 672,
   ASICModel: eASICModel.BM1368,
-  deviceModel: "NerdQAxe+",
+  deviceModel: "JingleMiner",
   stratumURL: "public-pool.io",
   stratumPort: 21496,
-  stratumUser: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d.bitaxe-U1",
+  stratumUser: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d.JingleMiner",
   fallbackStratumURL: "",
   fallbackStratumPort: 3333,
   fallbackStratumUser: "",
@@ -117,8 +117,8 @@ export class SystemService {
           influxURL: "http://192.168.0.1",
           influxPort: 8086,
           influxToken: "TOKEN",
-          influxBucket: "BUCKET",
-          influxOrg: "ORG",
+          influxBucket: "JingleMiner",
+          influxOrg: "JingleMiner",
           influxPrefix: "mainnet_stats"
         }
       ).pipe(delay(1000));

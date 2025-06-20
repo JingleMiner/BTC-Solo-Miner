@@ -34,6 +34,7 @@
       <nb-card-body>
         <ng-container *ngIf="latestRelease$ | async as latestRelease">
           <h2>Latest Release: {{ latestRelease.name }}</h2>
+          <!--
           <div *ngFor="let asset of latestRelease.assets">
             <div *ngIf="asset.name === expectedFileName">
               <a nbButton outline size="small" [status]="'primary'" target="_blank" [href]="asset.browser_download_url">
@@ -46,6 +47,7 @@
               </a>
             </div>
           </div>
+          -->
         </ng-container>
       </nb-card-body>
     </nb-card>
@@ -77,7 +79,7 @@
             Flash
           </button>
         </div>
-        <small>({{ expectedFileName }})</small>
+        <!--<small>({{ expectedFileName }})</small>-->
       </nb-card-body>
     </nb-card>
 
@@ -108,7 +110,7 @@
             Flash
           </button>
         </div>
-        <small>(www.bin)</small>
+        <!--<small>(www.bin)</small>-->
       </nb-card-body>
     </nb-card>
   </div>

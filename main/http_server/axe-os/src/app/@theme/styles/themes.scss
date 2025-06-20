@@ -53,6 +53,11 @@ $nb-themes: nb-register-theme((
 
   select-min-width: 6rem,
 
+  // 自定义背景色和卡片颜色 - 您可以修改这些颜色值
+  layout-background-color: #272727, // 主背景色 - 可以改为您想要的颜色
+  card-background-color: #383838, // 卡片背景色 - 可以改为您想要的颜色  
+  card-border-color: #383838, // 卡片边框色
+  
   slide-out-background: #252547,
   slide-out-shadow-color: 2px 0 3px #29157a,
   slide-out-shadow-color-rtl: -2px 0 3px #29157a,
@@ -106,6 +111,16 @@ $nb-themes: nb-register-theme((
   card-header-with-select-padding-bottom: 0.5rem,
 
   select-min-width: 6rem,
+
+  /* 自定义背景色和卡片颜色 - 您可以修改这些颜色值
+  layout-background-color: #16213e, // 主背景色 - 可以改为您想要的颜色
+  card-background-color: #1e2749, // 卡片背景色 - 可以改为您想要的颜色  
+  card-border-color: #2d3561, // 卡片边框色
+  */
+
+  layout-background-color: #272727, // 主背景色 - 可以改为您想要的颜色
+  card-background-color: #383838, // 卡片背景色 - 可以改为您想要的颜色  
+  card-border-color: #383838, // 卡片边框色
 
   slide-out-background: linear-gradient(270deg, #222b45 0%, #151a30 100%),
   slide-out-shadow-color: 0 4px 14px 0 #8f9bb3,

@@ -1,4 +1,3 @@
-
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -106,7 +105,7 @@ void generate_ssid(char *ssid)
     uint8_t mac[6];
     esp_wifi_get_mac(ESP_IF_WIFI_AP, mac);
     // Format the last 4 bytes of the MAC address as a hexadecimal string
-    snprintf(ssid, 32, "Nerdaxe_%02X%02X", mac[4], mac[5]);
+    snprintf(ssid, 32, "JingleMiner_%02X%02X", mac[4], mac[5]);
 }
 
 esp_netif_t *wifi_init_softap(void)
@@ -114,7 +113,7 @@ esp_netif_t *wifi_init_softap(void)
     esp_netif_t *esp_netif_ap = esp_netif_create_default_wifi_ap();
 
     // Define a buffer for the SSID
-    char ssid_with_mac[13]; // "Bitaxe" + 4 bytes from MAC address
+    char ssid_with_mac[20]; // "JingleMiner" + 4 bytes from MAC address
 
     // Generate the SSID
     generate_ssid(ssid_with_mac);
