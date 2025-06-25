@@ -34,6 +34,24 @@
       nb-sidebar nb-menu .menu-item:hover > a .menu-title {
         color: #FFD200 !important;
       }
+      
+      /* 滑块圆点颜色 - Light模式 */
+      .progress::-webkit-slider-thumb {
+        background: #FFD200 !important;
+      }
+      
+      .progress::-moz-range-thumb {
+        background: #FFD200 !important;
+      }
+      
+      /* 通用滑块thumb样式 */
+      input[type="range"]::-webkit-slider-thumb {
+        background: #FFD200 !important;
+      }
+      
+      input[type="range"]::-moz-range-thumb {
+        background: #FFD200 !important;
+      }
 }
 
 /* 暗黑模式样式 */
@@ -188,6 +206,24 @@
   nb-checkbox.status-basic .custom-checkbox.checked {
     background-color: #FFD200;
     border-color: #FFD200;
+  }
+  
+  /* 滑块圆点颜色 - Dark模式 */
+  .progress::-webkit-slider-thumb {
+    background: #FFD200 !important;
+  }
+  
+  .progress::-moz-range-thumb {
+    background: #FFD200 !important;
+  }
+  
+  /* 通用滑块thumb样式 */
+  input[type="range"]::-webkit-slider-thumb {
+    background: #FFD200 !important;
+  }
+  
+  input[type="range"]::-moz-range-thumb {
+    background: #FFD200 !important;
   }
 }
 
