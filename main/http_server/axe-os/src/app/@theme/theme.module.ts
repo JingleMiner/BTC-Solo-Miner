@@ -116,7 +116,7 @@ const PIPES = [
         providers: [
           ...NbThemeModule.forRoot(
             {
-              name: 'cosmic',
+              name: 'default',
             },
             [ CORPORATE_THEME ],
           ).providers || [],

@@ -8,7 +8,7 @@ main,namespace,,
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Device hostname on the local network
-hostname,data,string,bitaxe
+hostname,data,string,
 
 # Wi-Fi SSID – name of your wireless network
 wifissid,data,string,myssid

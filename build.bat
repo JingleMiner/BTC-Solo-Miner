@@ -2,6 +2,7 @@
 chcp 65001 >nul 2>&1
 setlocal enabledelayedexpansion
 
+REM set BOARD=NERDAXEGAMMA
 set BOARD=NERDQAXEPLUS2
 idf.py set-target esp32s3
 idf.py build
