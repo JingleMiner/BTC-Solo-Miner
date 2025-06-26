@@ -123,7 +123,7 @@ influx_token,data,string,f37fh783hf8hq
 influx_bucket,data,string,JingleMiner
 
 # InfluxDB organization name – required for v2 API
-influx_org,data,string,nerdqaxeplus
+influx_org,data,string,JingleMiner
 
 # Measurement prefix – helps identify data source in dashboards
 influx_prefix,data,string,mainnet_stats

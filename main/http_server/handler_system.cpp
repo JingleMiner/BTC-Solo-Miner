@@ -15,7 +15,31 @@
 
 static const char *TAG = "http_system";
 
-
+// Function to extract clean version from git describe format
+const char* get_clean_version() {
+    const char* full_version = esp_app_get_description()->version;
+    
+    // If version starts with "refs/tags/", skip that part
+    if (strncmp(full_version, "refs/tags/", 10) == 0) {
+        full_version += 10;
+    }
+    
+    // Find the first '-' character to extract just the tag part
+    const char* dash_pos = strchr(full_version, '-');
+    if (dash_pos != NULL) {
+        static char clean_version[32];
+        size_t len = dash_pos - full_version;
+        if (len >= sizeof(clean_version)) {
+            len = sizeof(clean_version) - 1;
+        }
+        strncpy(clean_version, full_version, len);
+        clean_version[len] = '\0';
+        return clean_version;
+    }
+    
+    // If no '-' found, return as is
+    return full_version;
+}
 
 /* Simple handler for getting system handler */
 esp_err_t GET_system_info(httpd_req_t *req)
@@ -145,7 +169,7 @@ esp_err_t GET_system_info(httpd_req_t *req)
     doc["wifiStatus"]         = SYSTEM_MODULE.getWifiStatus();
     doc["freeHeap"]           = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
     doc["freeHeapInt"]        = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-    doc["version"]            = esp_app_get_description()->version;
+    doc["version"]            = get_clean_version();
     doc["runningPartition"]   = esp_ota_get_running_partition()->label;
 
     //ESP_LOGI(TAG, "allocs: %d, deallocs: %d, reallocs: %d", allocs, deallocs, reallocs);
