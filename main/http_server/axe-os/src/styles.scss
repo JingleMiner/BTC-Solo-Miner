@@ -56,6 +56,10 @@
       [_nghost-ng-c3264290986] .progress-foreground[_ngcontent-ng-c3264290986] {
         background-color: #FFD200 !important;
       }
+
+      [_nghost-ng-c2831894239] .progress-foreground[_ngcontent-ng-c2831894239] {
+        background-color: #FFD200;
+      }
 }
 
 /* 暗黑模式样式 */
@@ -228,6 +232,10 @@
   
   input[type="range"]::-moz-range-thumb {
     background: #FFD200 !important;
+  }
+
+  [_nghost-ng-c2831894239] .progress-foreground[_ngcontent-ng-c2831894239] {
+    background-color: #FFD200;
   }
 }
 

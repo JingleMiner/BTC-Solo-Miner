@@ -12,45 +12,11 @@
   <!-- Flex container for the update cards -->
   <div class="cards-container">
 
-    <!-- Release Info Card (shows one of two versions based on checkLatestRelease) -->
-    <nb-card class="card-item" *ngIf="!checkLatestRelease">
+    <!-- Current Version Info Card -->
+    <nb-card class="card-item">
       <nb-card-header>
         Current Version: {{ (info$ | async)?.version }}
       </nb-card-header>
-      <nb-card-body>
-        <h2>
-          Latest Release:
-          <button nbButton size="small" [status]="'primary'" (click)="checkLatestRelease = true">
-            Check
-          </button>
-        </h2>
-      </nb-card-body>
-    </nb-card>
-
-    <nb-card class="card-item" *ngIf="checkLatestRelease">
-      <nb-card-header>
-        Current Version: {{ (info$ | async)?.version }}
-      </nb-card-header>
-      <!--
-      <nb-card-body>
-        <ng-container *ngIf="latestRelease$ | async as latestRelease">
-          <h2>Latest Release: {{ latestRelease.name }}</h2>
-          
-          <div *ngFor="let asset of latestRelease.assets">
-            <div *ngIf="asset.name === expectedFileName">
-              <a nbButton outline size="small" [status]="'primary'" target="_blank" [href]="asset.browser_download_url">
-                {{ expectedFileName }}
-              </a>
-            </div>
-            <div *ngIf="asset.name === 'www.bin'">
-              <a nbButton outline size="small" [status]="'primary'" target="_blank" [href]="asset.browser_download_url">
-                www.bin
-              </a>
-            </div>
-          </div>
-        </ng-container>
-      </nb-card-body>
-      -->
     </nb-card>
 
     <nb-card class="card-item" style="position: relative;">
