@@ -52,6 +52,10 @@
       input[type="range"]::-moz-range-thumb {
         background: #FFD200 !important;
       }
+      
+      [_nghost-ng-c3264290986] .progress-foreground[_ngcontent-ng-c3264290986] {
+        background-color: #FFD200 !important;
+      }
 }
 
 /* 暗黑模式样式 */
@@ -113,7 +117,7 @@
   }
 
   [_nghost-ng-c3264290986] .progress-foreground[_ngcontent-ng-c3264290986] {
-    background-color: #FFD200;
+    background-color: #FFD200 !important;
   }
 
   nb-sidebar {
