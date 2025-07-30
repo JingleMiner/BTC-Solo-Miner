@@ -5,13 +5,23 @@
             <table class="overview-table">
                 <tr>
                     <td><b>Model:</b></td>
-                    <!--<td>{{ info.deviceModel }} ({{ info.ASICModel }})</td>-->
-                    <td>JingleMiner ({{ info.ASICModel }})</td>
+                    <td>Jingle Miner BTC Solo {{ 
+                        info.deviceModel == 'NerdAxeGamma' ? 'Lite' :
+                        info.deviceModel == 'NerdQAxe++' ? 'Plus' :
+                        info.deviceModel == 'NerdOCTAXE-γ' ? 'Pro' : ''
+                    }}</td>
+                </tr>
+                <tr>
+                    <td><b>Asic Model:</b></td>
+                    <td>{{ info.ASICModel }}{{ 
+                        info.deviceModel == 'NerdAxeGamma' ? ' * 1' :
+                        info.deviceModel == 'NerdQAxe++' ? ' * 4' :
+                        info.deviceModel == 'NerdOCTAXE-γ' ? ' * 8' : ''
+                    }}</td>
                 </tr>
                 <tr>
                     <td><b>Uptime:</b></td>
-                    <td>{{ info.uptimeSeconds | dateAgo }}&nbsp;&nbsp;&nbsp;<button nbButton size="small"
-                            (click)="restart()" status="danger">Restart</button></td>
+                    <td>{{ info.uptimeSeconds | dateAgo }}</td>
                 </tr>
                 <tr>
                     <td><b>Last Reset Reason:</b></td>
@@ -32,6 +42,10 @@
                 <tr>
                     <td><b>Version:</b></td>
                     <td>{{ info.version }}</td>
+                </tr>
+                <tr>
+                    <td><b>Restart:</b></td>
+                    <td><button nbButton size="small" (click)="restart()" status="danger">Restart</button></td>
                 </tr>
             </table>
         </nb-card-body>
