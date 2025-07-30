@@ -15,7 +15,7 @@
 
 bool tempinit = false;
 
-static const char* TAG="nerdaxeGamma";
+static const char* TAG="JingleMiner";
 
 #define MAX(a,b) ((a)>(b)?(a):(b))
 

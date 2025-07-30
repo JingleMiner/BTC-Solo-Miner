@@ -19,7 +19,7 @@
 
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-static const char* TAG="nerdqaxe+";
+static const char* TAG="JingleMiner";
 
 #define VR_TEMP1075_ADDR   0x1
 
