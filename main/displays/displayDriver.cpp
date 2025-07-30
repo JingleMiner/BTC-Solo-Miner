@@ -476,8 +476,8 @@ void DisplayDriver::updateHashrate(System *module, float power)
     float efficiency = power / (module->getCurrentHashrate10m() / 1000.0);
     float hashrate = module->getCurrentHashrate10m();
 
-    // >= 10T doesn't fit on the screen with a decimal place
-    if (hashrate >= 10000.0) {
+    // >= 1.9999T doesn't fit on the screen with a decimal place
+    if (hashrate >= 1999.9) {
         snprintf(strData, sizeof(strData), "%d", (int) (hashrate + 0.5f));
     } else {
         snprintf(strData, sizeof(strData), "%.1f", hashrate);
