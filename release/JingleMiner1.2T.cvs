@@ -8,7 +8,7 @@ main,namespace,,
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Device hostname on the local network
-hostname,data,string,JingleMiner
+hostname,data,string,JM_Solo_Lite
 
 # Wi-Fi SSID – name of your wireless network
 wifissid,data,string,WifiSSID
@@ -55,7 +55,7 @@ fbstratumpass,data,string,x
 asicfrequency,data,u16,600
 
 # Default ASIC core voltage in mV – be cautious, this affects stability & heat
-asicvoltage,data,u16,1200
+asicvoltage,data,u16,1150
 
 # Interval (ms) between jobs sent to ASIC – smaller = faster job switching
 asicjobinterval,data,u16,1200
@@ -89,7 +89,7 @@ pid_d,data,u16,1000
 
 # Enable automatic fan speed control
 # 2: Experimental PID, 1: Classic Autmatic Fan Control, 0: manual
-autofanspeed,data,u16,0
+autofanspeed,data,u16,1
 
 # Manual fan speed in % (if autofanspeed = 0)
 fanspeed,data,u16,100
