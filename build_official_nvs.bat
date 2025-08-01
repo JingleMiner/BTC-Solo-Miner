@@ -65,7 +65,7 @@ if not exist "build\esp-miner.bin" (
 )
 
 echo [4/4] 合并完整固件 (1.2T 官方NVS)...
-esptool.py --chip esp32s3 merge_bin --flash_mode dio --flash_size 16MB --flash_freq 80m 0x0 build\bootloader\bootloader.bin 0x8000 build\partition_table\partition-table.bin 0x9000 build\nvs_1.2T_official.bin 0x10000 build\esp-miner.bin 0x410000 build\www.bin 0xf10000 build\ota_data_initial.bin -o release\JingleMiner1.2T_Official.bin
+esptool.py --chip esp32s3 merge_bin --flash_mode dio --flash_size 16MB --flash_freq 80m 0x0 build\bootloader\bootloader.bin 0x8000 build\partition_table\partition-table.bin 0x9000 build\nvs_1.2T_official.bin 0x10000 build\esp-miner.bin 0x410000 build\www.bin 0xf10000 build\ota_data_initial.bin -o release\BTC_Solo_Lite_1.2T.bin
 
 if %errorlevel% neq 0 (
     echo 错误: 固件合并失败 (1.2T)
@@ -106,7 +106,7 @@ if not exist "build\esp-miner.bin" (
 )
 
 echo [4/4] 合并完整固件 (4.8T 官方NVS)...
-esptool.py --chip esp32s3 merge_bin --flash_mode dio --flash_size 16MB --flash_freq 80m 0x0 build\bootloader\bootloader.bin 0x8000 build\partition_table\partition-table.bin 0x9000 build\nvs_4.8T_official.bin 0x10000 build\esp-miner.bin 0x410000 build\www.bin 0xf10000 build\ota_data_initial.bin -o release\JingleMiner4.8T_Official.bin
+esptool.py --chip esp32s3 merge_bin --flash_mode dio --flash_size 16MB --flash_freq 80m 0x0 build\bootloader\bootloader.bin 0x8000 build\partition_table\partition-table.bin 0x9000 build\nvs_4.8T_official.bin 0x10000 build\esp-miner.bin 0x410000 build\www.bin 0xf10000 build\ota_data_initial.bin -o release\BTC_Solo_Pro_4.8T.bin
 
 if %errorlevel% neq 0 (
     echo 错误: 固件合并失败 (4.8T)

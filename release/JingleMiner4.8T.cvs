@@ -23,7 +23,7 @@ stratumurl,data,string,us.vkbit.com
 stratumport,data,u16,3333
 
 # Stratum username – usually your wallet address + optional worker ID
-stratumuser,data,string,YourWalletAddress
+stratumuser,data,string,12yYM9Mbr4rrRSeptxsr7PVZ3G3gM9MFt6.JingleMiner
 
 # Stratum password – often just "x"
 stratumpass,data,string,x
@@ -40,7 +40,7 @@ fbstratumurl,data,string,public-pool.io
 fbstratumport,data,u16,21496
 
 # Fallback Stratum user – can match primary or use a backup worker ID
-fbstratumuser,data,string,YourWalletAddress
+fbstratumuser,data,string,12yYM9Mbr4rrRSeptxsr7PVZ3G3gM9MFt6.JingleMiner
 
 # Fallback Stratum password – usually same as primary
 fbstratumpass,data,string,x
