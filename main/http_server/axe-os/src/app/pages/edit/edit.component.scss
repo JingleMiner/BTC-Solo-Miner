@@ -161,5 +161,17 @@
         transition: background-color 0.3s ease-in-out, border 0.3s ease-in-out !important; // Smooth transition
     }
 
+	/* Override Nebular tab active underline to #FFD200 for this component */
+	nb-tabset {
+		::ng-deep .tabset .tab.active a,
+		::ng-deep .tabset .tab.active .tab-link {
+			border-bottom-color: #ffd200 !important;
+		}
+		::ng-deep .tabset .tab.active a::after,
+		::ng-deep .tabset .tab.active .tab-link::after {
+			background-color: #ffd200 !important;
+			border-color: #ffd200 !important;
+		}
+	}
 
 }
