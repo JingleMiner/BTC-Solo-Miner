@@ -16,9 +16,19 @@
                 <div class="form-row">
                     <label for="ssid" class="form-label">WiFi SSID:</label>
                     <div class="form-control-wrapper">
-                        <nb-select formControlName="ssid" (click)="scanWifi()" (selectedChange)="onSsidSelected($event)" placeholder="选择 Wi‑Fi">
-                            <nb-option *ngFor="let ap of wifiList" [value]="ap.ssid">{{ ap.ssid }} (RSSI: {{ ap.rssi }})</nb-option>
+                        <nb-select formControlName="ssid"
+                                   (openedChange)="onSsidOpened($event)"
+                                   (selectedChange)="onSsidSelected($event)"
+                                   [nbSpinner]="scanningWifi"
+                                   placeholder="Loading WiFi List...">
+                            <nb-option *ngFor="let ap of wifiList" [value]="ap.ssid">{{ ap.ssid }}</nb-option>
                         </nb-select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label for="ssidManual" class="form-label">WiFi SSID (Manual):</label>
+                    <div class="form-control-wrapper">
+                        <input nbInput id="ssidManual" type="text" formControlName="ssid" placeholder="手动输入 Wi‑Fi 名称" />
                     </div>
                 </div>
                 <div class="form-row">

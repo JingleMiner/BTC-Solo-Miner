@@ -59,6 +59,8 @@ export class EditComponent implements OnInit {
     'stratumDifficulty',
   ]);
 
+  private lastWifiScanAtMs: number = 0;
+
   @Input() uri = '';
 
   constructor(
@@ -126,7 +128,7 @@ export class EditComponent implements OnInit {
 
           hostname: [info.hostname, [Validators.required]],
           ssid: [info.ssid, [Validators.required]],
-          wifiPass: ['*****'],
+          wifiPass: [''],
           coreVoltage: [info.coreVoltage, [Validators.min(1005), Validators.max(1400), Validators.required]],
           frequency: [info.frequency, [Validators.required]],
           jobInterval: [info.jobInterval, [Validators.required]],
@@ -166,6 +168,9 @@ export class EditComponent implements OnInit {
           .subscribe(() => this.updatePIDFieldStates());
 
         this.updatePIDFieldStates();
+
+        // 页面打开后自动扫描一次 Wi‑Fi 列表
+        this.scanWifi();
       });
   }
 
@@ -198,6 +203,15 @@ export class EditComponent implements OnInit {
 
   public selectWifi(ssid: string): void {
     this.form.controls['ssid'].setValue(ssid);
+  }
+
+  public onSsidOpened(_event: any): void {
+    const now = Date.now();
+    // 10 秒内避免重复扫描；已有列表时直接展示
+    if (this.scanningWifi) return;
+    if (this.wifiList.length && (now - this.lastWifiScanAtMs) < 10_000) return;
+    this.lastWifiScanAtMs = now;
+    this.scanWifi();
   }
 
   public onSsidSelected(value: string): void {
