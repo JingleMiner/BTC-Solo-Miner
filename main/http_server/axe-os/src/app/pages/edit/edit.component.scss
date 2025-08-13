@@ -173,5 +173,12 @@
 			border-color: #ffd200 !important;
 		}
 	}
-
+    @media only screen and (max-width:900px) {
+        .form-row, .form-row-separator {
+          display: block !important;
+        }
+        input {
+          padding: 5px 10px !important;
+        }
+      }
 }
