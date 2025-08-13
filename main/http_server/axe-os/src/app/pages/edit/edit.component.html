@@ -16,13 +16,15 @@
                 <div class="form-row">
                     <label for="ssid" class="form-label">WiFi SSID:</label>
                     <div class="form-control-wrapper">
-                        <input nbInput id="ssid" type="text" formControlName="ssid" />
+                        <nb-select formControlName="ssid" (click)="scanWifi()" (selectedChange)="onSsidSelected($event)" placeholder="选择 Wi‑Fi">
+                            <nb-option *ngFor="let ap of wifiList" [value]="ap.ssid">{{ ap.ssid }} (RSSI: {{ ap.rssi }})</nb-option>
+                        </nb-select>
                     </div>
                 </div>
                 <div class="form-row">
                     <label for="wifiPass" class="form-label">WiFi Password:</label>
                     <div class="input-with-icon">
-                        <input nbInput id="wifiPass" formControlName="wifiPass"
+                        <input nbInput id="wifiPass" #wifiPassInput formControlName="wifiPass"
                             [type]="showWifiPassword ? 'text' : 'password'" placeholder="Enter WiFi password" />
                         <button nbButton ghost size="small" (click)="toggleWifiPasswordVisibility()" type="button"
                             class="icon-button">
@@ -315,7 +317,6 @@
             </nb-card-body>
         </nb-card>
     </ng-template>
-
 
 
 
