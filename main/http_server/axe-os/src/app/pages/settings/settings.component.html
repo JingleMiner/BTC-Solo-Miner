@@ -46,7 +46,7 @@
             Flash
           </button>
         </div>
-        <!--<small>({{ expectedFileName }})</small>-->
+        <small *ngIf="selectedFirmwareFile">Selected: {{ selectedFirmwareFile.name }}</small>
       </nb-card-body>
     </nb-card>
 
@@ -77,7 +77,7 @@
             Flash
           </button>
         </div>
-        <!--<small>(www.bin)</small>-->
+        <small *ngIf="selectedWebsiteFile">Selected: {{ selectedWebsiteFile.name }}</small>
       </nb-card-body>
     </nb-card>
   </div>

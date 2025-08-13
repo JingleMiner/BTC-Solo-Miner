@@ -1,5 +1,17 @@
 /* You can add global styles to this file, and also import other style files */
 
+/* 全局覆盖 Nebular nb-tabset 激活下划线颜色为 #FFD200 */
+nb-tabset .tabset .tab .tab-link::after,
+nb-tabset .tabset .tab a::after {
+  background-color: #FFD200 !important;
+  border-color: #FFD200 !important;
+}
+
+nb-tabset .tabset .tab.active .tab-link,
+nb-tabset .tabset .tab.active a {
+  border-bottom-color: #FFD200 !important;
+}
+
 /* Light模式样式 */
 .nb-theme-default {
       .gauge-value[_ngcontent-ng-c748289152] {
