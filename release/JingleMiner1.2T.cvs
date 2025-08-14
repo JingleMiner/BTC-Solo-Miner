@@ -34,13 +34,13 @@ stratumdiff,data,u64,1000
 # ─── Optional fallback configuration (enabled only if defined) ────────────────
 
 # Fallback Stratum server URL – used if primary connection fails
-fbstratumurl,data,string,public-pool.io
+fbstratumurl,data,string,us.vkbit.com
 
 # Fallback Stratum port – typically same as primary
-fbstratumport,data,u16,21496
+fbstratumport,data,u16,3333
 
 # Fallback Stratum user – can match primary or use a backup worker ID
-fbstratumuser,data,string,12yYM9Mbr4rrRSeptxsr7PVZ3G3gM9MFt6.JingleMiner
+fbstratumuser,data,string,YourWalletAddress
 
 # Fallback Stratum password – usually same as primary
 fbstratumpass,data,string,x

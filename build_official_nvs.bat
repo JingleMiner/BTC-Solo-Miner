@@ -43,14 +43,6 @@ echo ===============================================
 echo [1/4] 设置构建环境 (1.2T)...
 set BOARD=NERDAXEGAMMA
 
-echo [2/4] 生成官方NVS配置分区 (1.2T)...
-python "%NVS_TOOL%" generate release\JingleMiner1.2T.cvs build\nvs_1.2T_official.bin 0x6000
-if %errorlevel% neq 0 (
-    echo 错误: 官方NVS配置分区生成失败 (1.2T)
-    pause
-    exit /b 1
-)
-
 echo [3/4] 检查固件文件是否存在...
 if not exist "build\esp-miner.bin" (
     echo 警告: 固件文件不存在，需要先编译
@@ -63,6 +55,15 @@ if not exist "build\esp-miner.bin" (
         exit /b 1
     )
 )
+
+echo [2/4] 生成官方NVS配置分区 (1.2T)...
+python "%NVS_TOOL%" generate release\JingleMiner1.2T.cvs build\nvs_1.2T_official.bin 0x6000
+if %errorlevel% neq 0 (
+    echo 错误: 官方NVS配置分区生成失败 (1.2T)
+    pause
+    exit /b 1
+)
+
 
 echo [4/4] 合并完整固件 (1.2T 官方NVS)...
 esptool.py --chip esp32s3 merge_bin --flash_mode dio --flash_size 16MB --flash_freq 80m 0x0 build\bootloader\bootloader.bin 0x8000 build\partition_table\partition-table.bin 0x9000 build\nvs_1.2T_official.bin 0x10000 build\esp-miner.bin 0x410000 build\www.bin 0xf10000 build\ota_data_initial.bin -o release\BTC_Solo_Lite_1.2T.bin
@@ -84,14 +85,6 @@ echo ===============================================
 echo [1/4] 设置构建环境 (4.8T)...
 set BOARD=NERDQAXEPLUS2
 
-echo [2/4] 生成官方NVS配置分区 (4.8T)...
-python "%NVS_TOOL%" generate release\JingleMiner4.8T.cvs build\nvs_4.8T_official.bin 0x6000
-if %errorlevel% neq 0 (
-    echo 错误: 官方NVS配置分区生成失败 (4.8T)
-    pause
-    exit /b 1
-)
-
 echo [3/4] 检查固件文件是否存在...
 if not exist "build\esp-miner.bin" (
     echo 警告: 固件文件不存在，需要先编译
@@ -103,6 +96,14 @@ if not exist "build\esp-miner.bin" (
         pause
         exit /b 1
     )
+)
+
+echo [2/4] 生成官方NVS配置分区 (4.8T)...
+python "%NVS_TOOL%" generate release\JingleMiner4.8T.cvs build\nvs_4.8T_official.bin 0x6000
+if %errorlevel% neq 0 (
+    echo 错误: 官方NVS配置分区生成失败 (4.8T)
+    pause
+    exit /b 1
 )
 
 echo [4/4] 合并完整固件 (4.8T 官方NVS)...
@@ -154,8 +155,8 @@ if "%files_ok%"=="1" (
     echo   ✓ 保证配置能被正确读取
     echo.
     echo 📋 烧录命令:
-    echo   esptool.py write_flash 0x0 release\JingleMiner1.2T_Official.bin
-    echo   esptool.py write_flash 0x0 release\JingleMiner4.8T_Official.bin
+    echo   esptool.py write_flash 0x0 release\BTC_Solo_Lite_1.2T.bin
+    echo   esptool.py write_flash 0x0 release\BTC_Solo_Pro_4.8T.bin
     echo.
     echo 💡 提示: 这个版本使用ESP-IDF官方工具，配置应该100%生效!
 ) else (
