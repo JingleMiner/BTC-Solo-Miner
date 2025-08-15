@@ -193,4 +193,8 @@ export class SystemService {
   public updateSwarm(uri: string = '', swarmConfig: any) {
     return this.httpClient.patch(`${uri}/api/swarm`, swarmConfig);
   }
+
+  public scanWifi(uri: string = ''): Observable<{ ssid: string, rssi: number, authmode: number }[]> {
+    return this.httpClient.get(`${uri}/api/system/wifi/scan`) as Observable<{ ssid: string, rssi: number, authmode: number }[]>;
+  }
 }

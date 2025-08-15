@@ -6,6 +6,7 @@
 
 #include "http_cors.h"
 #include "http_utils.h"
+#include <algorithm>
 
 static const char *TAG = "http_ota";
 
@@ -37,7 +38,7 @@ esp_err_t POST_WWW_update(httpd_req_t *req)
     char *buf = (char*) malloc(2048);
 
     while (remaining > 0) {
-        int recv_len = httpd_req_recv(req, buf, min(remaining, 2048));
+        int recv_len = httpd_req_recv(req, buf, std::min(remaining, 2048));
 
         if (recv_len == HTTPD_SOCK_ERR_TIMEOUT) {
             continue;
@@ -81,7 +82,7 @@ esp_err_t POST_OTA_update(httpd_req_t *req)
     char *buf = (char*) malloc(2048);
 
     while (remaining > 0) {
-        int recv_len = httpd_req_recv(req, buf, min(remaining, 2048));
+        int recv_len = httpd_req_recv(req, buf, std::min(remaining, 2048));
 
         // Timeout Error: Just retry
         if (recv_len == HTTPD_SOCK_ERR_TIMEOUT) {

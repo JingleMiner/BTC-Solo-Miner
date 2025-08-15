@@ -12,6 +12,9 @@
 #include "http_utils.h"
 
 #include "ping_task.h"
+#include "esp_wifi.h"
+#include <vector>
+#include <string>
 
 static const char *TAG = "http_system";
 
@@ -39,6 +42,56 @@ const char* get_clean_version() {
     
     // If no '-' found, return as is
     return full_version;
+}
+
+esp_err_t GET_wifi_scan(httpd_req_t *req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+
+    // Set CORS headers
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "application/json");
+
+    wifi_scan_config_t scan_config = {};
+    scan_config.ssid = NULL;
+    scan_config.bssid = NULL;
+    scan_config.channel = 0;
+    scan_config.show_hidden = false;
+
+    esp_err_t err = esp_wifi_scan_start(&scan_config, true /* block until done */);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "WiFi scan start failed: %s", esp_err_to_name(err));
+        return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Scan failed");
+    }
+
+    uint16_t apNum = 0;
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&apNum));
+    std::vector<wifi_ap_record_t> records(apNum);
+    if (apNum > 0) {
+        if (esp_wifi_scan_get_ap_records(&apNum, records.data()) != ESP_OK) {
+            return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Scan read failed");
+        }
+    }
+
+    PSRAMAllocator allocator;
+    JsonDocument doc(&allocator);
+    JsonArray arr = doc.to<JsonArray>();
+    for (uint16_t i = 0; i < apNum; ++i) {
+        JsonObject obj = arr.add<JsonObject>();
+        obj["ssid"] = reinterpret_cast<const char*>(records[i].ssid);
+        obj["rssi"] = records[i].rssi;
+        obj["authmode"] = static_cast<int>(records[i].authmode);
+    }
+
+    esp_err_t ret = sendJsonResponse(req, doc);
+    doc.clear();
+    return ret;
 }
 
 /* Simple handler for getting system handler */

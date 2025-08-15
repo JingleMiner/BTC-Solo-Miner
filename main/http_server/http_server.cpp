@@ -173,6 +173,18 @@ esp_err_t start_rest_server(void * pvParameters)
     };
     httpd_register_uri_handler(http_server, &system_options_uri);
 
+    httpd_uri_t wifi_scan_get_uri = {
+        .uri = "/api/system/wifi/scan", .method = HTTP_GET, .handler = GET_wifi_scan, .user_ctx = rest_context};
+    httpd_register_uri_handler(http_server, &wifi_scan_get_uri);
+
+    httpd_uri_t wifi_scan_options_uri = {
+        .uri = "/api/system/wifi/scan",
+        .method = HTTP_OPTIONS,
+        .handler = handle_options_request,
+        .user_ctx = NULL,
+    };
+    httpd_register_uri_handler(http_server, &wifi_scan_options_uri);
+
     httpd_uri_t update_post_ota_firmware = {
         .uri = "/api/system/OTA", .method = HTTP_POST, .handler = POST_OTA_update, .user_ctx = NULL};
     httpd_register_uri_handler(http_server, &update_post_ota_firmware);

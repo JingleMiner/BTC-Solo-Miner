@@ -16,13 +16,25 @@
                 <div class="form-row">
                     <label for="ssid" class="form-label">WiFi SSID:</label>
                     <div class="form-control-wrapper">
-                        <input nbInput id="ssid" type="text" formControlName="ssid" />
+                        <nb-select formControlName="ssid"
+                                   (openedChange)="onSsidOpened($event)"
+                                   (selectedChange)="onSsidSelected($event)"
+                                   [nbSpinner]="scanningWifi"
+                                   [placeholder]="(scanningWifi || wifiList.length === 0) ? 'Scanning WiFi...' : 'Select WiFi Network'">
+                            <nb-option *ngFor="let ap of wifiList" [value]="ap.ssid">{{ ap.ssid }}</nb-option>
+                        </nb-select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label for="ssidManual" class="form-label">WiFi SSID (Manual):</label>
+                    <div class="form-control-wrapper">
+                        <input nbInput id="ssidManual" type="text" formControlName="ssid" placeholder="Input WiFi SSID" />
                     </div>
                 </div>
                 <div class="form-row">
                     <label for="wifiPass" class="form-label">WiFi Password:</label>
                     <div class="input-with-icon">
-                        <input nbInput id="wifiPass" formControlName="wifiPass"
+                        <input nbInput id="wifiPass" #wifiPassInput formControlName="wifiPass"
                             [type]="showWifiPassword ? 'text' : 'password'" placeholder="Enter WiFi password" />
                         <button nbButton ghost size="small" (click)="toggleWifiPasswordVisibility()" type="button"
                             class="icon-button">
@@ -315,7 +327,6 @@
             </nb-card-body>
         </nb-card>
     </ng-template>
-
 
 
 

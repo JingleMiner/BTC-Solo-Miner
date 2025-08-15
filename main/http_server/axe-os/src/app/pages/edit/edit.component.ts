@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, Input, OnInit, TemplateRef } from '@angular/core';
+import { Component, Input, OnInit, TemplateRef, ViewChild, ElementRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { startWith, catchError, of } from 'rxjs';
 import { LoadingService } from '../../services/loading.service';
@@ -21,6 +21,10 @@ export class EditComponent implements OnInit {
 
   public frequencyOptions: { name: string; value: number }[] = []; // Declare for frequency options
   public voltageOptions: { name: string; value: number }[] = [];  // Declare for voltage options
+
+  public scanningWifi = false;
+  public wifiList: { ssid: string, rssi: number, authmode: number }[] = [];
+  @ViewChild('wifiPassInput') wifiPassInput!: ElementRef<HTMLInputElement>;
 
   public firmwareUpdateProgress: number | null = null;
   public websiteUpdateProgress: number | null = null;
@@ -54,6 +58,8 @@ export class EditComponent implements OnInit {
     'autofanpolarity',
     'stratumDifficulty',
   ]);
+
+  private lastWifiScanAtMs: number = 0;
 
   @Input() uri = '';
 
@@ -122,7 +128,7 @@ export class EditComponent implements OnInit {
 
           hostname: [info.hostname, [Validators.required]],
           ssid: [info.ssid, [Validators.required]],
-          wifiPass: ['*****'],
+          wifiPass: [''],
           coreVoltage: [info.coreVoltage, [Validators.min(1005), Validators.max(1400), Validators.required]],
           frequency: [info.frequency, [Validators.required]],
           jobInterval: [info.jobInterval, [Validators.required]],
@@ -162,7 +168,58 @@ export class EditComponent implements OnInit {
           .subscribe(() => this.updatePIDFieldStates());
 
         this.updatePIDFieldStates();
+
+        // 页面打开后自动扫描一次 Wi‑Fi 列表
+        this.scanWifi();
       });
+  }
+
+  public scanWifi(): void {
+    if (this.scanningWifi) return;
+    this.scanningWifi = true;
+    this.wifiList = [];
+    this.systemService.scanWifi(this.uri)
+      .pipe(this.loadingService.lockUIUntilComplete())
+      .subscribe({
+        next: (list) => {
+          const seen = new Set<string>();
+          this.wifiList = list
+            .filter(item => {
+              const name = (item.ssid || '').trim();
+              if (!name || seen.has(name)) return false;
+              seen.add(name);
+              return true;
+            })
+            .sort((a, b) => b.rssi - a.rssi);
+        },
+        error: () => {
+          this.toastrService.danger('Error.', 'WiFi 扫描失败');
+        },
+        complete: () => {
+          this.scanningWifi = false;
+        }
+      });
+  }
+
+  public selectWifi(ssid: string): void {
+    this.form.controls['ssid'].setValue(ssid);
+  }
+
+  public onSsidOpened(_event: any): void {
+    const now = Date.now();
+    // 10 秒内避免重复扫描；已有列表时直接展示
+    if (this.scanningWifi) return;
+    if (this.wifiList.length && (now - this.lastWifiScanAtMs) < 10_000) return;
+    this.lastWifiScanAtMs = now;
+    this.scanWifi();
+  }
+
+  public onSsidSelected(value: string): void {
+    this.form.controls['ssid'].setValue(value);
+    // 选择后聚焦到密码输入
+    setTimeout(() => {
+      this.wifiPassInput?.nativeElement?.focus();
+    }, 0);
   }
 
   private updatePIDFieldStates(): void {
