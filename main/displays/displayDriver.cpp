@@ -565,7 +565,7 @@ void DisplayDriver::updateBTCprice(void)
         return;
 
     m_btcPrice = APIs_FETCHER.getPrice();
-    snprintf(price_str, sizeof(price_str), "%u$", m_btcPrice);
+    snprintf(price_str, sizeof(price_str), "$%u", m_btcPrice);
     lv_label_set_text(m_ui->ui_lblBTCPrice, price_str); // Update label
 }
 

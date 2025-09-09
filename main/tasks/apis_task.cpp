@@ -10,7 +10,7 @@
 #include <cstring>
 
 static const char *TAG = "APIsFetcher";
-#define APIurl_BTCPRICE    "https://mempool.space/api/v1/prices"
+#define APIurl_BTCPRICE    "https://hdapi.jinglemining.com/single-symbol-price?id=1"
 #define APIurl_BLOCKHEIGHT "https://mempool.space/api/blocks/tip/height"
 #define APIurl_GLOBALHASH  "https://mempool.space/api/v1/mining/hashrate/3d"
 #define APIurl_GETFEES     "https://mempool.space/api/v1/fees/recommended"
@@ -180,8 +180,30 @@ bool APIsFetcher::fetchData(const char* apiUrl, ApiType type)
 
 // Parse Bitcoin price
 bool APIsFetcher::parseBitcoinPrice(JsonDocument &doc) {
-    m_bitcoinPrice = doc["USD"].as<uint32_t>();
-    ESP_LOGI(TAG, "Bitcoin price in USD: %lu", m_bitcoinPrice);
+    // New API format: body.price contains "112,884.00"
+    const char* priceStr = doc["body"]["price"];
+    if (priceStr == nullptr) {
+        ESP_LOGE(TAG, "Price field not found in response");
+        return false;
+    }
+    
+    // Remove commas and decimal point, keep only integer part
+    char cleanPrice[32];
+    int j = 0;
+    for (int i = 0; priceStr[i] != '\0' && j < sizeof(cleanPrice) - 1; i++) {
+        if (priceStr[i] != ',' && priceStr[i] != '.') {
+            cleanPrice[j++] = priceStr[i];
+        } else if (priceStr[i] == '.') {
+            // Stop at decimal point, ignore everything after
+            break;
+        }
+    }
+    cleanPrice[j] = '\0';
+    
+    // Convert directly to uint32_t (integer only)
+    m_bitcoinPrice = (uint32_t)atol(cleanPrice);
+    
+    ESP_LOGI(TAG, "Bitcoin price in USD: %lu (from: %s)", m_bitcoinPrice, priceStr);
     return true;
 }
 

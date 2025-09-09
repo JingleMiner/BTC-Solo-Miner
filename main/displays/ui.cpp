@@ -421,7 +421,7 @@ void UI::bTCScreenInit(void)
     lv_obj_set_x(ui_lblBTCPrice, 30);
     lv_obj_set_y(ui_lblBTCPrice, 47);
     lv_obj_set_align(ui_lblBTCPrice, LV_ALIGN_LEFT_MID);
-    lv_label_set_text(ui_lblBTCPrice, "0$");
+    lv_label_set_text(ui_lblBTCPrice, "$0");
     lv_obj_set_style_text_color(ui_lblBTCPrice, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_lblBTCPrice, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_lblBTCPrice, &ui_font_OpenSansBold45, LV_PART_MAIN | LV_STATE_DEFAULT);
