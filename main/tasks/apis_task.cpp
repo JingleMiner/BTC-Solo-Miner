@@ -10,7 +10,7 @@
 #include <cstring>
 
 static const char *TAG = "APIsFetcher";
-#define APIurl_BTCPRICE    "https://hdapi.jinglemining.com/single-symbol-price?id=1"
+#define APIurl_BTCPRICE    "http://hdapi.jinglemining.com/single-symbol-price?id=1"
 #define APIurl_BLOCKHEIGHT "https://mempool.space/api/blocks/tip/height"
 #define APIurl_GLOBALHASH  "https://mempool.space/api/v1/mining/hashrate/3d"
 #define APIurl_GETFEES     "https://mempool.space/api/v1/fees/recommended"
