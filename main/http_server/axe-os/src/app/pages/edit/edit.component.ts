@@ -38,6 +38,10 @@ export class EditComponent implements OnInit {
   public defaultFrequency: number = 0;
   public defaultCoreVoltage: number = 0;
 
+  // Dynamically computed upper limits (20% above predefined max)
+  public allowedMaxFrequency: number = 0;
+  public allowedMaxVoltage: number = 0;
+
   private originalSettings!: any;
 
   private rebootRequiredFields = new Set<string>([
@@ -87,6 +91,12 @@ export class EditComponent implements OnInit {
         this.frequencyOptions = this.assembleDropdownOptions(this.getPredefinedFrequencies(this.defaultFrequency), info.frequency);
         this.voltageOptions = this.assembleDropdownOptions(this.getPredefinedVoltages(this.defaultCoreVoltage), info.coreVoltage);
 
+        // Compute dynamic upper limits (+20% over predefined max values)
+        const baseMaxFreq = Math.max(...this.getPredefinedFrequencies(this.defaultFrequency).map(f => f.value));
+        const baseMaxVolt = Math.max(...this.getPredefinedVoltages(this.defaultCoreVoltage).map(v => v.value));
+        this.allowedMaxFrequency = Math.round(baseMaxFreq * 1.2);
+        this.allowedMaxVoltage = Math.round(baseMaxVolt * 1.2);
+
         // fix setting where we allowed to disable temp shutdown
         if (info.overheat_temp == 0) {
           info.overheat_temp = 70;
@@ -128,9 +138,9 @@ export class EditComponent implements OnInit {
 
           hostname: [info.hostname, [Validators.required]],
           ssid: [info.ssid, [Validators.required]],
-          wifiPass: [''],
-          coreVoltage: [info.coreVoltage, [Validators.min(1005), Validators.max(1400), Validators.required]],
-          frequency: [info.frequency, [Validators.required]],
+          wifiPass: [info.wifiPass ? '*****' : ''],
+          coreVoltage: [info.coreVoltage, [Validators.min(1005), Validators.max(this.allowedMaxVoltage || 1400), Validators.required]],
+          frequency: [info.frequency, [Validators.required, Validators.max(this.allowedMaxFrequency || 0)]],
           jobInterval: [info.jobInterval, [Validators.required]],
           stratumDifficulty: [info.stratumDifficulty, [Validators.required, Validators.min(1)]],
           autofanspeed: [info.autofanspeed ?? 0, [Validators.required]],
@@ -260,7 +270,7 @@ export class EditComponent implements OnInit {
     // Allow an empty wifi password
     form.wifiPass = form.wifiPass == null ? '' : form.wifiPass;
 
-    if (form.wifiPass === '*****') {
+    if (form.wifiPass === '*****' || form.wifiPass === '') {
       delete form.wifiPass;
     }
     if (form.stratumPassword === '*****') {
@@ -339,12 +349,12 @@ export class EditComponent implements OnInit {
   }
 
   public isVoltageTooHigh(): boolean {
-    const maxVoltage = Math.max(...this.getPredefinedVoltages(this.defaultCoreVoltage).map(v => v.value));
+    const maxVoltage = this.allowedMaxVoltage || Math.max(...this.getPredefinedVoltages(this.defaultCoreVoltage).map(v => v.value));
     return this.form?.controls['coreVoltage'].value > maxVoltage;
   }
 
   public isFrequencyTooHigh(): boolean {
-    const maxFrequency = Math.max(...this.getPredefinedFrequencies(this.defaultFrequency).map(f => f.value));
+    const maxFrequency = this.allowedMaxFrequency || Math.max(...this.getPredefinedFrequencies(this.defaultFrequency).map(f => f.value));
     return this.form?.controls['frequency'].value > maxFrequency;
   }
 

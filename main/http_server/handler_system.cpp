@@ -136,6 +136,7 @@ esp_err_t GET_system_info(httpd_req_t *req)
 
     // Get configuration strings from NVS
     char *ssid               = Config::getWifiSSID();
+    char *wifiPass           = Config::getWifiPass();
     char *hostname           = Config::getHostname();
     char *stratumURL         = Config::getStratumURL();
     char *stratumUser        = Config::getStratumUser();
@@ -196,6 +197,7 @@ esp_err_t GET_system_info(httpd_req_t *req)
 
     doc["hostname"]           = hostname;
     doc["ssid"]               = ssid;
+    doc["wifiPass"]           = wifiPass;
     doc["stratumURL"]         = stratumURL;
     doc["stratumPort"]        = Config::getStratumPortNumber();
     doc["stratumUser"]        = stratumUser;
@@ -236,6 +238,7 @@ esp_err_t GET_system_info(httpd_req_t *req)
 
     // Free temporary strings
     free(ssid);
+    free(wifiPass);
     free(hostname);
     free(stratumURL);
     free(stratumUser);
@@ -319,7 +322,11 @@ esp_err_t PATCH_update_settings(httpd_req_t *req)
         Config::setWifiSSID(doc["ssid"].as<const char*>());
     }
     if (doc["wifiPass"].is<const char*>()) {
-        Config::setWifiPass(doc["wifiPass"].as<const char*>());
+        const char* wifiPass = doc["wifiPass"].as<const char*>();
+        // Only update if the password is not empty
+        if (strlen(wifiPass) > 0) {
+            Config::setWifiPass(wifiPass);
+        }
     }
     if (doc["hostname"].is<const char*>()) {
         Config::setHostname(doc["hostname"].as<const char*>());
