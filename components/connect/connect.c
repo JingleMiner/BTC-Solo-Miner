@@ -47,7 +47,7 @@ void MINER_set_ap_status(bool state);
 #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WAPI_PSK
 #endif
 
-#define WIFI_MAXIMUM_RETRY 20
+#define WIFI_MAXIMUM_RETRY 5
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;

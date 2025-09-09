@@ -110,7 +110,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     if (savedTheme && this.themes.some(t => t.value === savedTheme)) {
       this.currentTheme = savedTheme;
     } else {
-      this.currentTheme = 'default'; // Default theme
+      this.currentTheme = 'dark'; // Default theme
     }
     this.themeService.changeTheme(this.currentTheme);
     this.updateLogo();
