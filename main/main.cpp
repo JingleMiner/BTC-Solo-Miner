@@ -41,7 +41,7 @@ APIsFetcher APIs_FETCHER;
 
 AsicJobs asicJobs;
 
-static const char *TAG = "nerd*axe";
+static const char *TAG = "JingleMiner";
 // static const double NONCE_SPACE = 4294967296.0; //  2^32
 
 static void setup_wifi()

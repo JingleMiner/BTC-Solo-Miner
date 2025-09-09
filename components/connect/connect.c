@@ -47,7 +47,7 @@ void MINER_set_ap_status(bool state);
 #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WAPI_PSK
 #endif
 
-#define WIFI_MAXIMUM_RETRY 5
+#define WIFI_MAXIMUM_RETRY 20
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
@@ -76,13 +76,13 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
         esp_wifi_connect();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
 
-        // Wait a little
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        // Wait a little longer for better connection stability
+        vTaskDelay(3000 / portTICK_PERIOD_MS);
 
         if (s_retry_num < WIFI_MAXIMUM_RETRY) {
             esp_wifi_connect();
             s_retry_num++;
-            ESP_LOGI(TAG, "Retrying WiFi connection...");
+            ESP_LOGI(TAG, "Retrying WiFi connection... (attempt %d/%d)", s_retry_num, WIFI_MAXIMUM_RETRY);
             MINER_set_wifi_status(WIFI_RETRYING, s_retry_num);
         } else {
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
@@ -174,6 +174,7 @@ esp_netif_t *wifi_init_sta(const char *wifi_ssid, const char *wifi_pass)
     strncpy((char *) wifi_sta_config.sta.password, wifi_pass, 63);
     wifi_sta_config.sta.password[63] = '\0';
 
+    ESP_LOGI(TAG, "WiFi Config - SSID: %s, Password: %s", wifi_ssid, wifi_pass);
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_sta_config));
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
