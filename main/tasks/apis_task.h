@@ -17,6 +17,7 @@ private:
         APItype_PRICE,
         APItype_BLOCK_HEIGHT,
         APItype_HASHRATE,
+        APItype_POW,
         APItype_FEES
     };
 
@@ -24,6 +25,7 @@ private:
     uint32_t m_blockHeigh;
     uint64_t m_netHash;
     uint64_t m_netDifficulty;
+    uint32_t m_blocksToHalving;
     uint32_t m_hourFee;
     uint32_t m_halfHourFee;
     uint32_t m_fastestFee;
@@ -47,6 +49,8 @@ private:
     bool parseBlockHeight(JsonDocument &doc);
     // Parses Json Hashrate via HTTP request
     bool parseHashrate(JsonDocument &doc);
+    // Parses Json POW stats (halving, hashrate, difficulty, block height)
+    bool parsePow(JsonDocument &doc);
     // Parses Json Fees via HTTP request
     bool parseFees(JsonDocument &doc);
 

@@ -11,9 +11,7 @@
 
 static const char *TAG = "APIsFetcher";
 #define APIurl_BTCPRICE    "http://hdapi.jinglemining.com/single-symbol-price?id=1"
-#define APIurl_BLOCKHEIGHT "https://mempool.space/api/blocks/tip/height"
-#define APIurl_GLOBALHASH  "https://mempool.space/api/v1/mining/hashrate/3d"
-#define APIurl_GETFEES     "https://mempool.space/api/v1/fees/recommended"
+#define APIurl_POW         "http://hdapi.jinglemining.com/pow?symbol=btc"
 
 #define MIN(a, b) ((a)<(b))?(a):(b)
 
@@ -28,6 +26,7 @@ APIsFetcher::APIsFetcher() {
     m_blockHeigh = 0;
     m_netHash = 0;
     m_netDifficulty = 0;
+    m_blocksToHalving = 0;
     m_hourFee = 0;
     m_halfHourFee = 0;
     m_fastestFee = 0;
@@ -64,6 +63,7 @@ uint32_t APIsFetcher::getBlockHeight() {
 
 // Get Pending Halving blocks
 uint32_t APIsFetcher::getBlocksToHalving() {
+    if (m_blocksToHalving) return m_blocksToHalving;
     if(!m_blockHeigh) return 0;
     return (((m_blockHeigh / HALVING_BLOCKS) + 1) * HALVING_BLOCKS) - m_blockHeigh;
 }
@@ -129,6 +129,17 @@ bool APIsFetcher::fetchData(const char* apiUrl, ApiType type)
     config.crt_bundle_attach = esp_crt_bundle_attach;
     config.user_data = this;
 
+    // Debug: print which URL is being fetched
+    ESP_LOGI(TAG, "Fetching URL: %s", apiUrl);
+
+    // Select transport type based on scheme
+    // For http:// use plain TCP, for https:// use TLS
+    if (strncmp(apiUrl, "http://", 7) == 0) {
+        config.transport_type = HTTP_TRANSPORT_OVER_TCP;
+    } else {
+        config.transport_type = HTTP_TRANSPORT_OVER_SSL;
+    }
+
     esp_http_client_handle_t client = esp_http_client_init(&config);
     if (!client) {
         ESP_LOGE(TAG, "Failed to initialize HTTP client.");
@@ -170,6 +181,8 @@ bool APIsFetcher::fetchData(const char* apiUrl, ApiType type)
             return parseBlockHeight(doc);
         case APItype_HASHRATE:
             return parseHashrate(doc);
+        case APItype_POW:
+            return parsePow(doc);
         case APItype_FEES:
             return parseFees(doc);
         default:
@@ -227,6 +240,49 @@ bool APIsFetcher::parseHashrate(JsonDocument &doc) {
     return true;
 }
 
+bool APIsFetcher::parsePow(JsonDocument &doc) {
+    // Expected format:
+    // {
+    //   "task_id": "...",
+    //   "timestamp": 1757488774,
+    //   "body": {
+    //       "halving": 135978,
+    //       "network_hashrate": 1095.1,
+    //       "difficulty": 136,
+    //       "block_height": 914021
+    //   }
+    // }
+
+    JsonVariant body = doc["body"];
+    if (body.isNull()) {
+        ESP_LOGE(TAG, "POW: body not found in response");
+        return false;
+    }
+
+    // blocks to halving (already given as remaining blocks)
+    m_blocksToHalving = body["halving"].as<uint32_t>();
+
+    // block height
+    m_blockHeigh = body["block_height"].as<uint32_t>();
+
+    // network hashrate in EH/s (floating). Store as integer EH/s for UI consistency
+    double eh = body["network_hashrate"].as<double>();
+    if (eh >= 0.0) {
+        m_netHash = static_cast<uint64_t>(eh + 0.5); // round to nearest
+    }
+
+    // network difficulty in T (tera)
+    double diff_t = body["difficulty"].as<double>();
+    if (diff_t >= 0.0) {
+        m_netDifficulty = static_cast<uint64_t>(diff_t + 0.5); // round to nearest
+    }
+
+    ESP_LOGI(TAG, "POW: block=%lu, halving_blocks=%lu, net_hash=%llu EH/s, difficulty=%llu T",
+             m_blockHeigh, m_blocksToHalving, m_netHash, m_netDifficulty);
+
+    return true;
+}
+
 
 bool APIsFetcher::parseFees(JsonDocument &doc) {
     m_hourFee = doc["hourFee"].as<uint32_t>();
@@ -249,9 +305,7 @@ void APIsFetcher::task() {
 
     // initial price fetching
     fetchData(APIurl_BTCPRICE, APItype_PRICE);
-    fetchData(APIurl_BLOCKHEIGHT, APItype_BLOCK_HEIGHT);
-    fetchData(APIurl_GLOBALHASH, APItype_HASHRATE);
-    fetchData(APIurl_GETFEES, APItype_FEES);
+    fetchData(APIurl_POW, APItype_POW);
 
     while (true) {
         pthread_mutex_lock(&m_mutex);
@@ -260,9 +314,7 @@ void APIsFetcher::task() {
 
         do{
             fetchData(APIurl_BTCPRICE, APItype_PRICE);
-            fetchData(APIurl_BLOCKHEIGHT, APItype_BLOCK_HEIGHT);
-            fetchData(APIurl_GLOBALHASH, APItype_HASHRATE);
-            fetchData(APIurl_GETFEES, APItype_FEES);
+            fetchData(APIurl_POW, APItype_POW);
 
             vTaskDelay(60000 / portTICK_PERIOD_MS);
         }while (m_enabled);
