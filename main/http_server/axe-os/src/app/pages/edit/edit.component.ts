@@ -37,6 +37,13 @@ export class EditComponent implements OnInit {
 
   public defaultFrequency: number = 0;
   public defaultCoreVoltage: number = 0;
+  
+  // Mining performance selection (UI only)
+  private readonly PERFORMANCE_MAP: Record<string, { frequency: number; voltage: number }> = {
+    energy_saving: { frequency: 530, voltage: 1100 },
+    normal:        { frequency: 565, voltage: 1150 },
+    overclock:     { frequency: 600, voltage: 1200 },
+  };
 
   // Dynamically computed upper limits (20% above predefined max)
   public allowedMaxFrequency: number = 0;
@@ -141,6 +148,8 @@ export class EditComponent implements OnInit {
           wifiPass: [info.wifiPass ? '*****' : ''],
           coreVoltage: [info.coreVoltage, [Validators.min(1005), Validators.max(this.allowedMaxVoltage || 1400), Validators.required]],
           frequency: [info.frequency, [Validators.required, Validators.max(this.allowedMaxFrequency || 0)]],
+          // UI-only combined control
+          miningPerformance: [this.determineInitialPerformance(info.frequency, info.coreVoltage)],
           jobInterval: [info.jobInterval, [Validators.required]],
           stratumDifficulty: [info.stratumDifficulty, [Validators.required, Validators.min(1)]],
           autofanspeed: [info.autofanspeed ?? 0, [Validators.required]],
@@ -171,6 +180,11 @@ export class EditComponent implements OnInit {
             Validators.min(40),
             Validators.max(90),
             Validators.required]]
+        });
+
+        // React to mining performance changes to set freq/voltage
+        this.form.controls['miningPerformance'].valueChanges.subscribe((level: string) => {
+          this.applyPerformanceSetting(level);
         });
 
         this.form.controls['autofanspeed'].valueChanges
@@ -226,6 +240,8 @@ export class EditComponent implements OnInit {
 
   public onSsidSelected(value: string): void {
     this.form.controls['ssid'].setValue(value);
+    // Clear WiFi password for quick re-entry when selecting from dropdown
+    this.form.controls['wifiPass'].setValue('');
     // 选择后聚焦到密码输入
     setTimeout(() => {
       this.wifiPassInput?.nativeElement?.focus();
@@ -275,6 +291,10 @@ export class EditComponent implements OnInit {
     }
     if (form.stratumPassword === '*****') {
       delete form.stratumPassword;
+    }
+    // Remove UI-only field
+    if ('miningPerformance' in form) {
+      delete form.miningPerformance;
     }
 
     this.systemService.updateSystem(this.uri, form)
@@ -346,6 +366,33 @@ export class EditComponent implements OnInit {
     this.frequencyOptions = this.assembleDropdownOptions(this.getPredefinedFrequencies(this.defaultFrequency), this.form.controls['frequency'].value);
     this.voltageOptions = this.assembleDropdownOptions(this.getPredefinedVoltages(this.defaultCoreVoltage), this.form.controls['coreVoltage'].value);
     this.updatePIDFieldStates();
+  }
+
+  private determineInitialPerformance(freq: number, volt: number): string {
+    if (freq === this.PERFORMANCE_MAP.energy_saving.frequency && volt === this.PERFORMANCE_MAP.energy_saving.voltage) {
+      return 'energy_saving';
+    }
+    if (freq === this.PERFORMANCE_MAP.normal.frequency && volt === this.PERFORMANCE_MAP.normal.voltage) {
+      return 'normal';
+    }
+    if (freq === this.PERFORMANCE_MAP.overclock.frequency && volt === this.PERFORMANCE_MAP.overclock.voltage) {
+      return 'overclock';
+    }
+    // Default to normal if not matching exactly
+    return 'normal';
+  }
+
+  private applyPerformanceSetting(level: string): void {
+    const preset = this.PERFORMANCE_MAP[level];
+    if (!preset) {
+      return;
+    }
+    // Update both controls without emitting another change from freq/volt
+    this.form.controls['frequency'].setValue(preset.frequency, { emitEvent: false });
+    this.form.controls['coreVoltage'].setValue(preset.voltage, { emitEvent: false });
+    // Re-run validations/visual warnings
+    this.checkFrequencyLimit();
+    this.checkVoltageLimit();
   }
 
   public isVoltageTooHigh(): boolean {

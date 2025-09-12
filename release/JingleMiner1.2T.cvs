@@ -55,7 +55,7 @@ fbstratumpass,data,string,x
 asicfrequency,data,u16,600
 
 # Default ASIC core voltage in mV – be cautious, this affects stability & heat
-asicvoltage,data,u16,1150
+asicvoltage,data,u16,1200
 
 # Interval (ms) between jobs sent to ASIC – smaller = faster job switching
 asicjobinterval,data,u16,1200
