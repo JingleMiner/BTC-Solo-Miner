@@ -259,6 +259,17 @@
         <nb-card>
             <nb-card-header>Misc Settings</nb-card-header>
             <nb-card-body>
+                <div class="form-row auto-screen-cycle-row">
+                    <div class="form-control-wrapper d-flex align-items-center">
+                        <nb-checkbox formControlName="autoScreenCycle">Auto Screen Rotation</nb-checkbox>
+                        <div *ngIf="form.controls['autoScreenCycle'].value" class="auto-screen-interval" style="margin-left: 12px;">
+                            <input nbInput formControlName="autoScreenCycleInterval" type="number" min="5" max="600" step="1" placeholder="Interval (seconds)" />
+                            <small style="display: block; margin-top: 4px;">Seconds between screen changes (default 10s).</small>
+                            <small *ngIf="form.controls['autoScreenCycleInterval'].touched && form.controls['autoScreenCycleInterval'].invalid" style="color: #dc3545; display: block; margin-top: 4px;">Enter an integer between 5 and 600.</small>
+                            <small style="display: block; margin-top: 4px;">Decimals are rounded down automatically.</small>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-row">
                     <nb-checkbox formControlName="flipscreen">Flip Screen</nb-checkbox>
                 </div>

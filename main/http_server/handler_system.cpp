@@ -18,6 +18,9 @@
 
 static const char *TAG = "http_system";
 
+static constexpr uint16_t AUTO_SCREEN_ROTATE_MIN_SECONDS = 5;
+static constexpr uint16_t AUTO_SCREEN_ROTATE_MAX_SECONDS = 600;
+
 // Function to extract clean version from git describe format
 const char* get_clean_version() {
     const char* full_version = esp_app_get_description()->version;
@@ -213,6 +216,8 @@ esp_err_t GET_system_info(httpd_req_t *req)
     doc["flipscreen"]         = board->isFlipScreenEnabled() ? 1 : 0;
     doc["invertscreen"]       = Config::isInvertScreenEnabled() ? 1 : 0; // unused?
     doc["autoscreenoff"]      = Config::isAutoScreenOffEnabled() ? 1 : 0;
+    doc["autoScreenCycle"]    = Config::isAutoScreenRotateEnabled() ? 1 : 0;
+    doc["autoScreenCycleInterval"] = Config::getAutoScreenRotateInterval();
     doc["invertfanpolarity"]  = board->isInvertFanPolarityEnabled() ? 1 : 0;
     doc["autofanpolarity"]  = board->isAutoFanPolarityEnabled() ? 1 : 0;
     doc["autofanspeed"]       = Config::getTempControlMode();
@@ -293,6 +298,8 @@ esp_err_t PATCH_update_settings(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    bool autoScreenCycleEnabled = Config::isAutoScreenRotateEnabled();
+
     // Update settings if each key exists in the JSON object.
     if (doc["stratumURL"].is<const char*>()) {
         Config::setStratumURL(doc["stratumURL"].as<const char*>());
@@ -328,6 +335,23 @@ esp_err_t PATCH_update_settings(httpd_req_t *req)
             Config::setWifiPass(wifiPass);
         }
     }
+    if (doc["autoScreenCycle"].is<bool>()) {
+        autoScreenCycleEnabled = doc["autoScreenCycle"].as<bool>();
+        Config::setAutoScreenRotate(autoScreenCycleEnabled);
+    }
+    if (!doc["autoScreenCycleInterval"].isNull()) {
+        uint32_t interval = doc["autoScreenCycleInterval"].as<uint32_t>();
+        if (interval == 0) {
+            interval = CONFIG_AUTO_SCREEN_ROTATE_INTERVAL;
+        }
+        if (interval < AUTO_SCREEN_ROTATE_MIN_SECONDS) {
+            interval = AUTO_SCREEN_ROTATE_MIN_SECONDS;
+        } else if (interval > AUTO_SCREEN_ROTATE_MAX_SECONDS) {
+            interval = AUTO_SCREEN_ROTATE_MAX_SECONDS;
+        }
+        Config::setAutoScreenRotateInterval(static_cast<uint16_t>(interval));
+    }
+
     if (doc["hostname"].is<const char*>()) {
         Config::setHostname(doc["hostname"].as<const char*>());
     }
@@ -374,7 +398,11 @@ esp_err_t PATCH_update_settings(httpd_req_t *req)
         Config::setFanSpeed(doc["fanspeed"].as<uint16_t>());
     }
     if (doc["autoscreenoff"].is<bool>()) {
-        Config::setAutoScreenOff(doc["autoscreenoff"].as<bool>());
+        if (autoScreenCycleEnabled) {
+            Config::setAutoScreenOff(false);
+        } else {
+            Config::setAutoScreenOff(doc["autoscreenoff"].as<bool>());
+        }
     }
     if (doc["pidTargetTemp"].is<uint16_t>()) {
         Config::setPidTargetTemp(doc["pidTargetTemp"].as<uint16_t>());
@@ -387,6 +415,10 @@ esp_err_t PATCH_update_settings(httpd_req_t *req)
     }
     if (doc["pidD"].is<float>()) {
         Config::setPidD((uint16_t) (doc["pidD"].as<float>() * 100.0f));
+    }
+
+    if (Config::isAutoScreenRotateEnabled()) {
+        Config::setAutoScreenOff(false);
     }
 
     doc.clear();

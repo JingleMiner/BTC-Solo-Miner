@@ -31,6 +31,8 @@
 #define NVS_CONFIG_BEST_DIFF "bestdiff"
 #define NVS_CONFIG_SELF_TEST "selftest"
 #define NVS_CONFIG_AUTO_SCREEN_OFF "autoscreenoff"
+#define NVS_CONFIG_AUTO_SCREEN_ROTATE "autoscreenrot"
+#define NVS_CONFIG_AUTO_SCREEN_ROTATE_INTERVAL "autoscreenint"
 #define NVS_CONFIG_OVERHEAT_TEMP "overheat_temp"
 
 #define NVS_CONFIG_INFLUX_ENABLE "influx_enable"
@@ -57,6 +59,13 @@
 #endif
 
 #include <stdint.h>
+
+#ifndef CONFIG_AUTO_SCREEN_ROTATE_VALUE
+#define CONFIG_AUTO_SCREEN_ROTATE_VALUE 0
+#endif
+#ifndef CONFIG_AUTO_SCREEN_ROTATE_INTERVAL
+#define CONFIG_AUTO_SCREEN_ROTATE_INTERVAL 10
+#endif
 
 namespace Config {
     char* nvs_config_get_string(const char* key, const char* default_value);
@@ -137,6 +146,7 @@ namespace Config {
     inline bool isInvertScreenEnabled() { return nvs_config_get_u16(NVS_CONFIG_INVERT_SCREEN, 0) != 0; } // todo unused?
     inline bool isSelfTestEnabled() { return nvs_config_get_u16(NVS_CONFIG_SELF_TEST, 0) != 0; }
     inline bool isAutoScreenOffEnabled() { return nvs_config_get_u16(NVS_CONFIG_AUTO_SCREEN_OFF, CONFIG_AUTO_SCREEN_OFF_VALUE) != 0; }
+    inline bool isAutoScreenRotateEnabled() { return nvs_config_get_u16(NVS_CONFIG_AUTO_SCREEN_ROTATE, CONFIG_AUTO_SCREEN_ROTATE_VALUE) != 0; }
     inline bool isInfluxEnabled() { return nvs_config_get_u16(NVS_CONFIG_INFLUX_ENABLE, CONFIG_INFLUX_ENABLE_VALUE) != 0; }
 
     // ---- Boolean Setters ----
@@ -146,6 +156,7 @@ namespace Config {
     inline void setAutoFanPolarity(bool value) { nvs_config_set_u16(NVS_CONFIG_AUTO_FAN_POLARITY, value ? 1 : 0); }
     inline void setSelfTest(bool value) { nvs_config_set_u16(NVS_CONFIG_SELF_TEST, value ? 1 : 0); }
     inline void setAutoScreenOff(bool value) { nvs_config_set_u16(NVS_CONFIG_AUTO_SCREEN_OFF, value ? 1 : 0); }
+    inline void setAutoScreenRotate(bool value) { nvs_config_set_u16(NVS_CONFIG_AUTO_SCREEN_ROTATE, value ? 1 : 0); }
     inline void setInfluxEnabled(bool value) { nvs_config_set_u16(NVS_CONFIG_INFLUX_ENABLE, value ? 1 : 0); }
 
 
@@ -156,6 +167,8 @@ namespace Config {
     inline bool isFlipScreenEnabled(bool d) { return nvs_config_get_u16(NVS_CONFIG_FLIP_SCREEN, d ? 1 : 0) != 0; }
     inline bool isInvertFanPolarityEnabled(bool d) { return nvs_config_get_u16(NVS_CONFIG_INVERT_FAN_POLARITY, d ? 1 : 0) != 0; }
     inline bool isAutoFanPolarityEnabled(bool d) { return nvs_config_get_u16(NVS_CONFIG_AUTO_FAN_POLARITY, d ? 1 : 0) != 0; }
+    inline uint16_t getAutoScreenRotateInterval() { return nvs_config_get_u16(NVS_CONFIG_AUTO_SCREEN_ROTATE_INTERVAL, CONFIG_AUTO_SCREEN_ROTATE_INTERVAL); }
+    inline void setAutoScreenRotateInterval(uint16_t value) { nvs_config_set_u16(NVS_CONFIG_AUTO_SCREEN_ROTATE_INTERVAL, value); }
     inline uint16_t getPidTargetTemp(uint16_t d) { return nvs_config_get_u16(NVS_CONFIG_PID_TARGET_TEMP, d); }
     inline uint16_t getPidP(uint16_t d) { return nvs_config_get_u16(NVS_CONFIG_PID_P, d); }
     inline uint16_t getPidI(uint16_t d) { return nvs_config_get_u16(NVS_CONFIG_PID_I, d); }
