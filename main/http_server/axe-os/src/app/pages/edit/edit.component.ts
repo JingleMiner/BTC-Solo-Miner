@@ -44,6 +44,9 @@ export class EditComponent implements OnInit {
     normal:        { frequency: 600, voltage: 1150 },
     overclock:     { frequency: 600, voltage: 1200 },
   };
+  private readonly CUSTOM_CORE_VOLTAGE_MV = 1150;
+  private readonly CUSTOM_FREQUENCY_MIN = 500;
+  private readonly CUSTOM_FREQUENCY_MAX = 650;
 
   // Dynamically computed upper limits (20% above predefined max)
   public allowedMaxFrequency: number = 0;
@@ -113,6 +116,9 @@ export class EditComponent implements OnInit {
         info.overheat_temp = Math.max(info.overheat_temp, 40);
         info.overheat_temp = Math.min(info.overheat_temp, 90);
 
+        const initialPerformance = this.determineInitialPerformance(info.frequency, info.coreVoltage);
+        const numericFrequency = Number(info.frequency);
+
         this.form = this.fb.group({
           flipscreen: [info.flipscreen == 1],
           invertscreen: [info.invertscreen == 1],
@@ -149,7 +155,11 @@ export class EditComponent implements OnInit {
           coreVoltage: [info.coreVoltage, [Validators.min(1005), Validators.max(this.allowedMaxVoltage || 1400), Validators.required]],
           frequency: [info.frequency, [Validators.required, Validators.max(this.allowedMaxFrequency || 0)]],
           // UI-only combined control
-          miningPerformance: [this.determineInitialPerformance(info.frequency, info.coreVoltage)],
+          miningPerformance: [initialPerformance],
+          customFrequency: [{
+            value: Number.isFinite(numericFrequency) ? Math.floor(numericFrequency) : this.CUSTOM_FREQUENCY_MIN,
+            disabled: initialPerformance !== 'custom'
+          }],
           jobInterval: [info.jobInterval, [Validators.required]],
           stratumDifficulty: [info.stratumDifficulty, [Validators.required, Validators.min(1)]],
           autofanspeed: [info.autofanspeed ?? 0, [Validators.required]],
@@ -183,9 +193,17 @@ export class EditComponent implements OnInit {
         });
 
         // React to mining performance changes to set freq/voltage
-        this.form.controls['miningPerformance'].valueChanges.subscribe((level: string) => {
-          this.applyPerformanceSetting(level);
+        this.form.controls['customFrequency'].valueChanges.subscribe(() => {
+          if (this.form.controls['miningPerformance'].value === 'custom') {
+            this.applyCustomFrequencyFromControl();
+          }
         });
+
+        this.form.controls['miningPerformance'].valueChanges.subscribe((level: string) => {
+          this.onPerformanceLevelChanged(level);
+        });
+
+        this.onPerformanceLevelChanged(initialPerformance);
 
         this.form.controls['autofanspeed'].valueChanges
           .pipe(startWith(this.form.controls['autofanspeed'].value))
@@ -193,7 +211,7 @@ export class EditComponent implements OnInit {
 
         this.updatePIDFieldStates();
 
-        // 页面打开后自动扫描一次 Wi‑Fi 列表
+        // 页面打开后自动扫描一次 Wi-Fi 列表
         this.scanWifi();
       });
   }
@@ -296,6 +314,9 @@ export class EditComponent implements OnInit {
     if ('miningPerformance' in form) {
       delete form.miningPerformance;
     }
+    if ('customFrequency' in form) {
+      delete form.customFrequency;
+    }
 
     this.systemService.updateSystem(this.uri, form)
       .pipe(this.loadingService.lockUIUntilComplete())
@@ -378,8 +399,78 @@ export class EditComponent implements OnInit {
     if (freq === this.PERFORMANCE_MAP.overclock.frequency && volt === this.PERFORMANCE_MAP.overclock.voltage) {
       return 'overclock';
     }
-    // Default to normal if not matching exactly
-    return 'normal';
+    // Fall back to custom mode when values do not match presets
+    return 'custom';
+  }
+
+  private onPerformanceLevelChanged(level: string): void {
+    if (!this.form) {
+      return;
+    }
+    if (level === 'custom') {
+      this.enableCustomFrequencyControl();
+      this.applyCustomFrequencyFromControl();
+    } else {
+      this.disableCustomFrequencyControl();
+      this.applyPerformanceSetting(level);
+    }
+  }
+
+  private enableCustomFrequencyControl(): void {
+    const control = this.form?.controls['customFrequency'];
+    if (!control) {
+      return;
+    }
+    if (control.disabled) {
+      control.enable({ emitEvent: false });
+    }
+    control.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private disableCustomFrequencyControl(): void {
+    const control = this.form?.controls['customFrequency'];
+    if (!control) {
+      return;
+    }
+    if (control.enabled) {
+      control.disable({ emitEvent: false });
+    }
+    control.setErrors(null);
+  }
+
+  private applyCustomFrequencyFromControl(): void {
+    const control = this.form?.controls['customFrequency'];
+    if (!control) {
+      return;
+    }
+    const sanitized = this.sanitizeCustomFrequency(control.value);
+    if (sanitized === null) {
+      control.setErrors({ customFrequency: true });
+      return;
+    }
+    if (control.value !== sanitized) {
+      control.setValue(sanitized, { emitEvent: false });
+    }
+    control.setErrors(null);
+    this.form.controls['frequency'].setValue(sanitized, { emitEvent: false });
+    this.form.controls['coreVoltage'].setValue(this.CUSTOM_CORE_VOLTAGE_MV, { emitEvent: false });
+    this.checkFrequencyLimit();
+    this.checkVoltageLimit();
+  }
+
+  private sanitizeCustomFrequency(value: any): number | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+      return null;
+    }
+    const integerValue = Math.floor(numericValue);
+    if (integerValue < this.CUSTOM_FREQUENCY_MIN || integerValue > this.CUSTOM_FREQUENCY_MAX) {
+      return null;
+    }
+    return integerValue;
   }
 
   private applyPerformanceSetting(level: string): void {

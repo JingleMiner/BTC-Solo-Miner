@@ -138,8 +138,16 @@
                                 <nb-option value="energy_saving">Energy Saving</nb-option>
                                 <nb-option value="normal">Normal</nb-option>
                                 <nb-option value="overclock">Overclock</nb-option>
+                                <nb-option value="custom">Custom</nb-option>
                             </nb-select>
                             <small></small>
+                            <div *ngIf="form.controls['miningPerformance'].value === 'custom'" style="margin-top:10px;">
+                                <input nbInput id="customFrequency" formControlName="customFrequency" type="number" min="500" max="650" step="1" placeholder="Enter 500-650 MHz" />
+                                <small *ngIf="form.controls['customFrequency'].invalid" style="color: #dc3545; display: block; margin-top: 4px;">
+                                    Frequency must be an integer between 500 and 650 MHz.
+                                </small>
+                                <small style="display: block; margin-top: 4px;">Decimals are rounded down automatically.</small>
+                            </div>
                             <div style="margin-top:6px;">
                                 <small>Frequency: <b>{{ form.controls['frequency']?.value }}</b> MHz</small>
                                 <br>
