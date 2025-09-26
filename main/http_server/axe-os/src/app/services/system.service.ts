@@ -62,6 +62,8 @@ const defaultInfo: ISystemInfo = {
   fanspeed: 100,
   fanrpm: 0,
   autoscreenoff: 0,
+  autoScreenCycle: 0,
+  autoScreenCycleInterval: 10,
   lastResetReason: "Unknown",
   jobInterval: 1200,
   stratumDifficulty: 1000,
@@ -198,3 +200,4 @@ export class SystemService {
     return this.httpClient.get(`${uri}/api/system/wifi/scan`) as Observable<{ ssid: string, rssi: number, authmode: number }[]>;
   }
 }
+

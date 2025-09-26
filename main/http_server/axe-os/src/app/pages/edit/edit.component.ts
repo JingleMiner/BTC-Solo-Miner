@@ -47,6 +47,9 @@ export class EditComponent implements OnInit {
   private readonly CUSTOM_CORE_VOLTAGE_MV = 1150;
   private readonly CUSTOM_FREQUENCY_MIN = 500;
   private readonly CUSTOM_FREQUENCY_MAX = 650;
+  private readonly AUTO_SCREEN_CYCLE_INTERVAL_MIN = 5;
+  private readonly AUTO_SCREEN_CYCLE_INTERVAL_MAX = 600;
+  private readonly AUTO_SCREEN_CYCLE_INTERVAL_DEFAULT = 10;
 
   // Dynamically computed upper limits (20% above predefined max)
   public allowedMaxFrequency: number = 0;
@@ -118,11 +121,24 @@ export class EditComponent implements OnInit {
 
         const initialPerformance = this.determineInitialPerformance(info.frequency, info.coreVoltage);
         const numericFrequency = Number(info.frequency);
+        const initialAutoScreenCycle = info.autoScreenCycle === 1;
+        const initialAutoScreenCycleInterval = this.sanitizeAutoScreenInterval(
+          info.autoScreenCycleInterval ?? this.AUTO_SCREEN_CYCLE_INTERVAL_DEFAULT
+        );
 
         this.form = this.fb.group({
           flipscreen: [info.flipscreen == 1],
           invertscreen: [info.invertscreen == 1],
           autoscreenoff: [info.autoscreenoff == 1],
+          autoScreenCycle: [initialAutoScreenCycle],
+          autoScreenCycleInterval: [{
+            value: initialAutoScreenCycleInterval,
+            disabled: !initialAutoScreenCycle
+          }, [
+            Validators.required,
+            Validators.min(this.AUTO_SCREEN_CYCLE_INTERVAL_MIN),
+            Validators.max(this.AUTO_SCREEN_CYCLE_INTERVAL_MAX)
+          ]],
           stratumURL: [info.stratumURL, [
             Validators.required,
             Validators.pattern(/^(?!.*stratum\+tcp:\/\/).*$/),
@@ -190,6 +206,22 @@ export class EditComponent implements OnInit {
             Validators.min(40),
             Validators.max(90),
             Validators.required]]
+        });
+
+        this.form.controls['autoScreenCycle'].valueChanges
+          .pipe(startWith(this.form.controls['autoScreenCycle'].value))
+          .subscribe((enabled: boolean) => this.syncAutoScreenControls(enabled));
+
+        this.syncAutoScreenControls(this.form.controls['autoScreenCycle'].value);
+
+        this.form.controls['autoScreenCycleInterval'].valueChanges.subscribe(value => {
+          if (!this.form.controls['autoScreenCycle'].value) {
+            return;
+          }
+          const sanitized = this.sanitizeAutoScreenInterval(value);
+          if (sanitized !== value) {
+            this.form.controls['autoScreenCycleInterval'].setValue(sanitized, { emitEvent: false });
+          }
         });
 
         // React to mining performance changes to set freq/voltage
@@ -318,6 +350,13 @@ export class EditComponent implements OnInit {
       delete form.customFrequency;
     }
 
+    if ('autoScreenCycleInterval' in form) {
+      form.autoScreenCycleInterval = this.sanitizeAutoScreenInterval(form.autoScreenCycleInterval);
+    }
+    if (form.autoScreenCycle) {
+      form.autoscreenoff = false;
+    }
+
     this.systemService.updateSystem(this.uri, form)
       .pipe(this.loadingService.lockUIUntilComplete())
       .subscribe({
@@ -436,6 +475,55 @@ export class EditComponent implements OnInit {
       control.disable({ emitEvent: false });
     }
     control.setErrors(null);
+  }
+
+  private syncAutoScreenControls(enabled: boolean): void {
+    if (!this.form) {
+      return;
+    }
+    const autoScreenOffControl = this.form.controls['autoscreenoff'];
+    const intervalControl = this.form.controls['autoScreenCycleInterval'];
+
+    if (enabled) {
+      const sanitized = this.sanitizeAutoScreenInterval(intervalControl.value);
+      if (intervalControl.disabled) {
+        intervalControl.enable({ emitEvent: false });
+      }
+      if (intervalControl.value !== sanitized) {
+        intervalControl.setValue(sanitized, { emitEvent: false });
+      }
+      intervalControl.updateValueAndValidity({ emitEvent: false });
+      if (autoScreenOffControl.enabled) {
+        autoScreenOffControl.disable({ emitEvent: false });
+      }
+      if (autoScreenOffControl.value !== false) {
+        autoScreenOffControl.setValue(false, { emitEvent: false });
+      }
+    } else {
+      if (intervalControl.enabled) {
+        intervalControl.disable({ emitEvent: false });
+      }
+      intervalControl.updateValueAndValidity({ emitEvent: false });
+      if (autoScreenOffControl.disabled) {
+        autoScreenOffControl.enable({ emitEvent: false });
+      }
+    }
+  }
+
+  private sanitizeAutoScreenInterval(value: any): number {
+    if (value === null || value === undefined || value === '') {
+      return this.AUTO_SCREEN_CYCLE_INTERVAL_DEFAULT;
+    }
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+      return this.AUTO_SCREEN_CYCLE_INTERVAL_DEFAULT;
+    }
+    const floored = Math.floor(numericValue);
+    const clamped = Math.min(
+      this.AUTO_SCREEN_CYCLE_INTERVAL_MAX,
+      Math.max(this.AUTO_SCREEN_CYCLE_INTERVAL_MIN, floored)
+    );
+    return clamped;
   }
 
   private applyCustomFrequencyFromControl(): void {

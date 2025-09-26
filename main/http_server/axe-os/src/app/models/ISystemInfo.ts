@@ -6,6 +6,8 @@ export interface ISystemInfo {
     flipscreen: number;
     invertscreen: number;
     autoscreenoff: number;
+    autoScreenCycle: number;
+    autoScreenCycleInterval: number;
     power: number,
     maxPower: number,
     minPower: number,
