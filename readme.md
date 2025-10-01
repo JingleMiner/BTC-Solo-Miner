@@ -5,11 +5,7 @@
 | Required Platform | >= ESP-IDF v5.3.X       |
 | ----------------- | --------------------- |
 
-Jingle Miner BTC Solo Miner is a fork of the NerdAxe miner tailored for the [NerdQAxe+](https://github.com/shufps/qaxe) control board.
-
-Credits to the devs:
-- BitAxe devs on OSMU: @skot/ESP-Miner, @ben and @jhonny
-- NerdAxe dev @BitMaker
+Jingle Miner BTC Solo Miner is a fork of the NerdAxe miner tailored for the [NerdQAxe+](https://github.com/shufps/ESP-Miner-NerdQAxePlus) control board.
 
 ## Prerequisites
 
@@ -32,7 +28,7 @@ Latest releases: https://github.com/JingleMiner/BTC-Solo-Miner/releases
 
 ### Recommended Method: The Webflasher
 
-The [Webflasher](https://jingleminer.com/jingle-miner-web-flasher/) (a modified fork of the excellent [Bitaxe Webflasher](https://github.com/bitaxeorg/bitaxe-web-flasher) by [Wantclue](https://github.com/WantClue)) is the easiest method for updating all Jingle Miner Solo Miner variants.
+The [Webflasher](https://jingleminer.com/jingle-miner-web-flasher/) (a modified fork of the excellent [Bitaxe Webflasher](https://github.com/bitaxeorg/bitaxe-web-flasher)) is the easiest method for updating all Jingle Miner Solo Miner variants.
 
 It pulls the latest releases directly from this repository. Use Chrome/Edge or another browser with Web Serial support, connect the board in bootloader mode, pick the matching device, and flash.
 
@@ -210,19 +206,6 @@ If you do not wish to use Docker, simply install bitaxetool via pip:
 ```bash
 pip install --upgrade bitaxetool
 ```
-
-## Updating UI assets
-
-Display assets reside in `main/displays/images/themes/`. The `.c` files are generated from RGB565 images using the `image_to_c` tooling. To update the UI:
-1. Replace or edit the images in the respective theme folder.
-2. Run `scripts/image_to_c.py` (or the matching batch script) to regenerate the `.c` sources.
-3. Rebuild and flash the firmware.
-
-## Grafana Monitoring
-
-<img src="https://github.com/user-attachments/assets/3c485428-5e48-4761-9717-bd88579a747d" width="600px">
-
-The Jingle Miner firmware supports InfluxDB telemetry. A ready-to-go monitoring stack with Grafana dashboards is available under [`monitoring/`](https://github.com/JingleMiner/BTC-Solo-Miner/tree/main/monitoring).
 
 ## Troubleshooting
 
