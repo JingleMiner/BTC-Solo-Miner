@@ -7,8 +7,8 @@ datasources:
     url: http://influxdb:8086
     jsonData:
       version: Flux
-      organization: nerdqaxeplus
-      defaultBucket: nerdqaxeplus
+      organization: JingleMiner
+      defaultBucket: JingleMiner
       tlsSkipVerify: true
     secureJsonData:
       token: f37fh783hf8hq    

@@ -21,11 +21,18 @@ typedef struct
         }                                                                                                                          \
     } while (0)
 
+#ifdef CONFIG_SPIRAM
+#define MALLOC(s) heap_caps_malloc(s, MALLOC_CAP_SPIRAM)
+#define CALLOC(s, t) heap_caps_calloc(s, t, MALLOC_CAP_SPIRAM)
+#define FREE(p) do { if (p) { heap_caps_free(p); (p) = NULL; } } while (0)
+#else
+#define MALLOC(s) malloc(s)
+#define CALLOC(s, t) calloc(s, t)
+#define FREE(p) do { if (p) { free(p); (p) = NULL; } } while (0)
+#endif
+
 #define MESSAGE_QUEUE_SIZE (128)
 
 #define CHECK_FILE_EXTENSION(filename, ext) (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
-
-#define max(a,b) ((a)>(b))?(a):(b)
-#define min(a,b) ((a)<(b))?(a):(b)
 
 esp_err_t sendJsonResponse(httpd_req_t *req, JsonDocument &doc);

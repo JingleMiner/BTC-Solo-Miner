@@ -27,6 +27,7 @@ class NerdQaxePlus : public Board {
 
     virtual void shutdown();
 
+// abstract common methos
     virtual bool setVoltage(float core_voltage);
 
     virtual void setFanPolarity(bool invert);

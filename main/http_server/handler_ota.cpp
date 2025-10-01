@@ -6,6 +6,7 @@
 
 #include "http_cors.h"
 #include "http_utils.h"
+#include <algorithm>
 
 static const char *TAG = "http_ota";
 
@@ -31,20 +32,13 @@ esp_err_t POST_WWW_update(httpd_req_t *req)
     }
 
     // Erase the entire www partition before writing
-    {
-        // lock the power management module
-        LockGuard g(POWER_MANAGEMENT_MODULE);
-        ESP_LOGI(TAG, "erasing www partition ...");
-        ESP_ERROR_CHECK(esp_partition_erase_range(www_partition, 0, www_partition->size));
-        ESP_LOGI(TAG, "erasing done");
-    }
+    ESP_ERROR_CHECK(esp_partition_erase_range(www_partition, 0, www_partition->size));
 
     // don't put it on the stack
     char *buf = (char*) malloc(2048);
-    uint32_t offset = 0;
 
     while (remaining > 0) {
-        int recv_len = httpd_req_recv(req, buf, min(remaining, 2048));
+        int recv_len = httpd_req_recv(req, buf, std::min(remaining, 2048));
 
         if (recv_len == HTTPD_SOCK_ERR_TIMEOUT) {
             continue;
@@ -54,25 +48,13 @@ esp_err_t POST_WWW_update(httpd_req_t *req)
             return ESP_FAIL;
         }
 
-        {
-            // lock the power management module
-            LockGuard g(POWER_MANAGEMENT_MODULE);
-
-            // print each 64kb
-            if (!(offset & 0xffff)) {
-                ESP_LOGI(TAG, "flashing to %08lx", offset);
-            }
-            if (esp_partition_write(www_partition, offset, (const void *) buf, recv_len) != ESP_OK) {
-                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Write Error");
-                free(buf);
-                return ESP_FAIL;
-            }
+        if (esp_partition_write(www_partition, www_partition->size - remaining, (const void *) buf, recv_len) != ESP_OK) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Write Error");
+            free(buf);
+            return ESP_FAIL;
         }
-        remaining -= recv_len;
-        offset += recv_len;
 
-        // switch task to not stall the PID
-        taskYIELD();
+        remaining -= recv_len;
     }
 
     free(buf);
@@ -93,24 +75,14 @@ esp_err_t POST_OTA_update(httpd_req_t *req)
     esp_ota_handle_t ota_handle;
     int remaining = req->content_len;
 
-    // lock the power management module
-    LockGuard g(POWER_MANAGEMENT_MODULE);
-
-    // Shut down buck converter before starting OTA.
-    // During OTA, I2C conflicts prevent the PID from working correctly.
-    // Disabling hardware avoids any risk of overheating.
-    // The device will reboot after the update anyway.
-    POWER_MANAGEMENT_MODULE.shutdown();
-
     const esp_partition_t *ota_partition = esp_ota_get_next_update_partition(NULL);
     ESP_ERROR_CHECK(esp_ota_begin(ota_partition, OTA_SIZE_UNKNOWN, &ota_handle));
 
     // don't put it on the stack
     char *buf = (char*) malloc(2048);
-    uint32_t offset = 0;
 
     while (remaining > 0) {
-        int recv_len = httpd_req_recv(req, buf, min(remaining, 2048));
+        int recv_len = httpd_req_recv(req, buf, std::min(remaining, 2048));
 
         // Timeout Error: Just retry
         if (recv_len == HTTPD_SOCK_ERR_TIMEOUT) {
@@ -124,10 +96,6 @@ esp_err_t POST_OTA_update(httpd_req_t *req)
         }
 
         // Successful Upload: Flash firmware chunk
-        // print each 64kb
-        if (!(offset & 0xffff)) {
-            ESP_LOGI(TAG, "flashing to %08lx", offset);
-        }
         if (esp_ota_write(ota_handle, (const void *) buf, recv_len) != ESP_OK) {
             esp_ota_abort(ota_handle);
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Flash Error");
@@ -136,10 +104,6 @@ esp_err_t POST_OTA_update(httpd_req_t *req)
         }
 
         remaining -= recv_len;
-        offset += recv_len;
-
-        // give the scheduler a chance for other tasks
-        taskYIELD();
     }
 
     free(buf);
@@ -152,9 +116,8 @@ esp_err_t POST_OTA_update(httpd_req_t *req)
 
     httpd_resp_sendstr(req, "Firmware update complete, rebooting now!\n");
     ESP_LOGI(TAG, "Restarting System because of Firmware update complete");
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
     POWER_MANAGEMENT_MODULE.restart();
 
-    // unreachable
     return ESP_OK;
 }

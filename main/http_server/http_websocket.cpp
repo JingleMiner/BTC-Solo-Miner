@@ -3,7 +3,6 @@
 #include "http_cors.h"
 #include "http_utils.h"
 #include "http_websocket.h"
-#include "macros.h"
 
 static const char* TAG = "http_websocket";
 
@@ -100,13 +99,13 @@ void websocket_log_handler(void* param)
 			if (message != NULL) {
 				FREE(message);
 			}
-			vTaskDelay(pdMS_TO_TICKS(10));
+			vTaskDelay(10 / portTICK_PERIOD_MS);
 			continue;
 		}
 
 		if (fd == -1) {
 			FREE(message);
-			vTaskDelay(pdMS_TO_TICKS(100));
+			vTaskDelay(100 / portTICK_PERIOD_MS);
 			continue;
 		}
 

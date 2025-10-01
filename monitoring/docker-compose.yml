@@ -13,8 +13,8 @@ services:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=influx
       - DOCKER_INFLUXDB_INIT_PASSWORD=f37fh783hf8hq
-      - DOCKER_INFLUXDB_INIT_ORG=nerdqaxeplus
-      - DOCKER_INFLUXDB_INIT_BUCKET=nerdqaxeplus
+      - DOCKER_INFLUXDB_INIT_ORG=JingleMiner
+      - DOCKER_INFLUXDB_INIT_BUCKET=JingleMiner
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=f37fh783hf8hq
     restart: unless-stopped
 

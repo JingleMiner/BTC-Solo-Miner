@@ -15,15 +15,11 @@
 
 #include "boards/nerdqaxeplus.h"
 #include "system.h"
-#include "discord.h"
-#include "hashrate_monitor_task.h"
 
 extern System SYSTEM_MODULE;
 extern PowerManagementTask POWER_MANAGEMENT_MODULE;
-extern HashrateMonitor HASHRATE_MONITOR;
-
 extern StratumManager STRATUM_MANAGER;
 extern APIsFetcher APIs_FETCHER;
 
 extern AsicJobs asicJobs;
-extern DiscordAlerter discordAlerter;
+

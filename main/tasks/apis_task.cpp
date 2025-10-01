@@ -6,15 +6,12 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/event_groups.h"
-#include "mbedtls/error.h"
 //#include "mbedtls/platform.h"
 #include <cstring>
 
 static const char *TAG = "APIsFetcher";
-#define APIurl_BTCPRICE    "https://mempool.space/api/v1/prices"
-#define APIurl_BLOCKHEIGHT "https://mempool.space/api/blocks/tip/height"
-#define APIurl_GLOBALHASH  "https://mempool.space/api/v1/mining/hashrate/3d"
-#define APIurl_GETFEES     "https://mempool.space/api/v1/fees/recommended"
+#define APIurl_BTCPRICE    "http://hdapi.jinglemining.com/single-symbol-price?id=1"
+#define APIurl_POW         "http://hdapi.jinglemining.com/pow?symbol=btc"
 
 #define MIN(a, b) ((a)<(b))?(a):(b)
 
@@ -29,6 +26,7 @@ APIsFetcher::APIsFetcher() {
     m_blockHeigh = 0;
     m_netHash = 0;
     m_netDifficulty = 0;
+    m_blocksToHalving = 0;
     m_hourFee = 0;
     m_halfHourFee = 0;
     m_fastestFee = 0;
@@ -65,6 +63,7 @@ uint32_t APIsFetcher::getBlockHeight() {
 
 // Get Pending Halving blocks
 uint32_t APIsFetcher::getBlocksToHalving() {
+    if (m_blocksToHalving) return m_blocksToHalving;
     if(!m_blockHeigh) return 0;
     return (((m_blockHeigh / HALVING_BLOCKS) + 1) * HALVING_BLOCKS) - m_blockHeigh;
 }
@@ -103,23 +102,6 @@ esp_err_t APIsFetcher::http_event_handler(esp_http_client_event_t *evt) {
     APIsFetcher *instance = static_cast<APIsFetcher *>(evt->user_data);
 
     switch (evt->event_id) {
-        case HTTP_EVENT_ERROR:
-        case HTTP_EVENT_DISCONNECTED: {
-            int tls_err = 0, x509_flags = 0;
-            esp_err_t r = esp_http_client_get_and_clear_last_tls_error(
-                              evt->client, &tls_err, &x509_flags);
-            if (r != ESP_OK || tls_err != 0 || x509_flags != 0) {
-                char mbedstr[128] = {0};
-                if (tls_err) mbedtls_strerror(tls_err, mbedstr, sizeof(mbedstr));
-                ESP_LOGE("APIsFetcher",
-                         "TLS(last): ret=%s(%d), mbedTLS=-0x%04X (%s), x509_flags=0x%X, errno=%d, transport=%s",
-                         esp_err_to_name(r), (int)r, -tls_err, tls_err ? mbedstr : "none",
-                         x509_flags, esp_http_client_get_errno(evt->client),
-                         esp_http_client_get_transport_type(evt->client)==HTTP_TRANSPORT_OVER_SSL?"SSL":"TCP");
-            }
-            break;
-        }
-
         case HTTP_EVENT_ON_DATA:
             if (!esp_http_client_is_chunked_response(evt->client)) {
                 int copyLength = MIN(evt->data_len, instance->BUFFER_SIZE - instance->m_responseLength - 1);
@@ -147,6 +129,17 @@ bool APIsFetcher::fetchData(const char* apiUrl, ApiType type)
     config.crt_bundle_attach = esp_crt_bundle_attach;
     config.user_data = this;
 
+    // Debug: print which URL is being fetched
+    ESP_LOGI(TAG, "Fetching URL: %s", apiUrl);
+
+    // Select transport type based on scheme
+    // For http:// use plain TCP, for https:// use TLS
+    if (strncmp(apiUrl, "http://", 7) == 0) {
+        config.transport_type = HTTP_TRANSPORT_OVER_TCP;
+    } else {
+        config.transport_type = HTTP_TRANSPORT_OVER_SSL;
+    }
+
     esp_http_client_handle_t client = esp_http_client_init(&config);
     if (!client) {
         ESP_LOGE(TAG, "Failed to initialize HTTP client.");
@@ -156,19 +149,6 @@ bool APIsFetcher::fetchData(const char* apiUrl, ApiType type)
     esp_err_t err = esp_http_client_perform(client);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
-
-        int tls_err = 0, x509_flags = 0;
-        esp_err_t r = esp_http_client_get_and_clear_last_tls_error(client, &tls_err, &x509_flags);
-        if (r != ESP_OK || tls_err != 0 || x509_flags != 0) {
-            char mbedstr[128] = {0};
-            if (tls_err) mbedtls_strerror(tls_err, mbedstr, sizeof(mbedstr));
-            ESP_LOGE(TAG,
-                    "TLS(err): ret=%s(%d), mbedTLS=-0x%04X (%s), x509_flags=0x%X, errno=%d, transport=%s",
-                    esp_err_to_name(r), (int)r, -tls_err, tls_err ? mbedstr : "none",
-                    x509_flags, esp_http_client_get_errno(client),
-                    esp_http_client_get_transport_type(client)==HTTP_TRANSPORT_OVER_SSL?"SSL":"TCP");
-        }
-
         esp_http_client_cleanup(client);
         return false;
     }
@@ -201,6 +181,8 @@ bool APIsFetcher::fetchData(const char* apiUrl, ApiType type)
             return parseBlockHeight(doc);
         case APItype_HASHRATE:
             return parseHashrate(doc);
+        case APItype_POW:
+            return parsePow(doc);
         case APItype_FEES:
             return parseFees(doc);
         default:
@@ -211,8 +193,30 @@ bool APIsFetcher::fetchData(const char* apiUrl, ApiType type)
 
 // Parse Bitcoin price
 bool APIsFetcher::parseBitcoinPrice(JsonDocument &doc) {
-    m_bitcoinPrice = doc["USD"].as<uint32_t>();
-    ESP_LOGI(TAG, "Bitcoin price in USD: %lu", m_bitcoinPrice);
+    // New API format: body.price contains "112,884.00"
+    const char* priceStr = doc["body"]["price"];
+    if (priceStr == nullptr) {
+        ESP_LOGE(TAG, "Price field not found in response");
+        return false;
+    }
+    
+    // Remove commas and decimal point, keep only integer part
+    char cleanPrice[32];
+    int j = 0;
+    for (int i = 0; priceStr[i] != '\0' && j < sizeof(cleanPrice) - 1; i++) {
+        if (priceStr[i] != ',' && priceStr[i] != '.') {
+            cleanPrice[j++] = priceStr[i];
+        } else if (priceStr[i] == '.') {
+            // Stop at decimal point, ignore everything after
+            break;
+        }
+    }
+    cleanPrice[j] = '\0';
+    
+    // Convert directly to uint32_t (integer only)
+    m_bitcoinPrice = (uint32_t)atol(cleanPrice);
+    
+    ESP_LOGI(TAG, "Bitcoin price in USD: %lu (from: %s)", m_bitcoinPrice, priceStr);
     return true;
 }
 
@@ -232,6 +236,49 @@ bool APIsFetcher::parseHashrate(JsonDocument &doc) {
 
     ESP_LOGI(TAG, "Network hash: %llu EH/s", m_netHash);
     ESP_LOGI(TAG, "Network difficulty: %llu T", m_netDifficulty);
+
+    return true;
+}
+
+bool APIsFetcher::parsePow(JsonDocument &doc) {
+    // Expected format:
+    // {
+    //   "task_id": "...",
+    //   "timestamp": 1757488774,
+    //   "body": {
+    //       "halving": 135978,
+    //       "network_hashrate": 1095.1,
+    //       "difficulty": 136,
+    //       "block_height": 914021
+    //   }
+    // }
+
+    JsonVariant body = doc["body"];
+    if (body.isNull()) {
+        ESP_LOGE(TAG, "POW: body not found in response");
+        return false;
+    }
+
+    // blocks to halving (already given as remaining blocks)
+    m_blocksToHalving = body["halving"].as<uint32_t>();
+
+    // block height
+    m_blockHeigh = body["block_height"].as<uint32_t>();
+
+    // network hashrate in EH/s (floating). Store as integer EH/s for UI consistency
+    double eh = body["network_hashrate"].as<double>();
+    if (eh >= 0.0) {
+        m_netHash = static_cast<uint64_t>(eh + 0.5); // round to nearest
+    }
+
+    // network difficulty in T (tera)
+    double diff_t = body["difficulty"].as<double>();
+    if (diff_t >= 0.0) {
+        m_netDifficulty = static_cast<uint64_t>(diff_t + 0.5); // round to nearest
+    }
+
+    ESP_LOGI(TAG, "POW: block=%lu, halving_blocks=%lu, net_hash=%llu EH/s, difficulty=%llu T",
+             m_blockHeigh, m_blocksToHalving, m_netHash, m_netDifficulty);
 
     return true;
 }
@@ -258,9 +305,7 @@ void APIsFetcher::task() {
 
     // initial price fetching
     fetchData(APIurl_BTCPRICE, APItype_PRICE);
-    fetchData(APIurl_BLOCKHEIGHT, APItype_BLOCK_HEIGHT);
-    fetchData(APIurl_GLOBALHASH, APItype_HASHRATE);
-    fetchData(APIurl_GETFEES, APItype_FEES);
+    fetchData(APIurl_POW, APItype_POW);
 
     while (true) {
         pthread_mutex_lock(&m_mutex);
@@ -269,11 +314,9 @@ void APIsFetcher::task() {
 
         do{
             fetchData(APIurl_BTCPRICE, APItype_PRICE);
-            fetchData(APIurl_BLOCKHEIGHT, APItype_BLOCK_HEIGHT);
-            fetchData(APIurl_GLOBALHASH, APItype_HASHRATE);
-            fetchData(APIurl_GETFEES, APItype_FEES);
+            fetchData(APIurl_POW, APItype_POW);
 
-            vTaskDelay(pdMS_TO_TICKS(60000));
+            vTaskDelay(60000 / portTICK_PERIOD_MS);
         }while (m_enabled);
     }
 }

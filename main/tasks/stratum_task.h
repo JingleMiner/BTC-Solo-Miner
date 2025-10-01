@@ -17,7 +17,6 @@ typedef struct
     int port;             ///< Stratum pool port
     const char *user;     ///< Stratum user credentials
     const char *password; ///< Stratum password credentials
-    bool enonceSub;       ///< Flag is enonce subscription is enabled
 } StratumConfig;
 
 /**
@@ -98,7 +97,7 @@ class StratumManager {
     const char *m_tag = "stratum-manager"; ///< Debug tag for logging
 
     pthread_mutex_t m_mutex = PTHREAD_MUTEX_INITIALIZER; ///< Mutex for thread safety
-    StratumApiV1Message m_stratum_api_v1_message;       ///< API message handler
+    StratumApiV1Message *m_stratum_api_v1_message;       ///< API message handler
     StratumTask *m_stratumTasks[2] = {nullptr, nullptr}; ///< Primary and secondary Stratum tasks
 
     int m_selected = 0;                         ///< Tracks the currently active pool (0 = primary, 1 = secondary)
@@ -129,7 +128,6 @@ class StratumManager {
     void connectedCallback(int index);    ///< Called when a pool successfully connects
     void disconnectedCallback(int index); ///< Called when a pool disconnects
 
-    void freeStratumV1Message(StratumApiV1Message *message);
   public:
     StratumManager();
     static void taskWrapper(void *pvParameters); ///< Wrapper function for task execution

@@ -22,6 +22,4 @@ NerdOctaxePlus::NerdOctaxePlus() : NerdQaxePlus() {
 #ifdef NERDOCTAXEPLUS
     m_theme = new ThemeNerdoctaxeplus();
 #endif
-
-    m_swarmColorName = "#11d51e"; // green
 }

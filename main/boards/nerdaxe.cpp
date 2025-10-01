@@ -38,8 +38,6 @@ NerdAxe::NerdAxe() : Board() {
     m_asicModel = "BM1366";
     m_asicCount = 1;
     m_asicJobIntervalMs = 1500;
-    m_asicFrequencies = {400, 425, 450, 475, 485, 500, 525, 550, 575};
-    m_asicVoltages = {1100, 1150, 1200, 1250, 1300};
     m_defaultAsicFrequency = m_asicFrequency = 485;
     m_defaultAsicVoltageMillis = m_asicVoltageMillis = 1200;
     m_fanInvertPolarity = true;
@@ -64,11 +62,7 @@ NerdAxe::NerdAxe() : Board() {
     m_theme = new ThemeNerdaxe();
 #endif
 
-    m_swarmColorName = "#e7cf00"; // yellow
-
     m_asics = new BM1366();
-    m_hasHashCounter = true;
-    m_vrFrequency = m_defaultVrFrequency = m_asics->getDefaultVrFrequency();
 }
 
 /**
@@ -129,7 +123,7 @@ bool NerdAxe::initBoard()
 }
 
 void NerdAxe::shutdown() {
-    setVoltage(0.0);
+    // NOP / TODO
 }
 
 bool NerdAxe::initAsics()
@@ -141,33 +135,33 @@ bool NerdAxe::initAsics()
     gpio_set_level(BM1366_RST_PIN, 0);
 
     // wait 250ms
-    vTaskDelay(pdMS_TO_TICKS(250));
+    vTaskDelay(250 / portTICK_PERIOD_MS);
 
      // set output voltage
     setVoltage((float) m_asicVoltageMillis / 1000.0f);
 
     // wait 500ms
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 
     // release reset pin
     gpio_set_level(BM1366_RST_PIN, 1);
 
     // delay for 250ms
-    vTaskDelay(pdMS_TO_TICKS(250));
+    vTaskDelay(250 / portTICK_PERIOD_MS);
 
     SERIAL_clear_buffer();
-    m_chipsDetected = m_asics->init(m_asicFrequency, m_asicCount, m_asicMaxDifficulty, m_vrFrequency);
+    m_chipsDetected = m_asics->init(m_asicFrequency, m_asicCount, m_asicMaxDifficulty);
     if (!m_chipsDetected) {
         ESP_LOGE(TAG, "error initializing asics!");
         return false;
     }
     int maxBaud = m_asics->setMaxBaud();
     // no idea why a delay is needed here starting with esp-idf 5.4 🙈
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
     SERIAL_set_baud(maxBaud);
     SERIAL_clear_buffer();
 
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 
     m_isInitialized = true;
     return true;
@@ -180,10 +174,6 @@ void NerdAxe::requestBuckTelemtry() {
 
 bool NerdAxe::setVoltage(float core_voltage)
 {
-    if (!validateVoltage(core_voltage)) {
-        return false;
-    }
-
     if (!core_voltage) {
         // inverted
         gpio_set_level(PWR_EN_PIN, 1);

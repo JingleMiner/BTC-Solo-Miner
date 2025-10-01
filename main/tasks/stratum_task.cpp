@@ -19,7 +19,12 @@
 #include "psram_allocator.h"
 #include "stratum_task.h"
 #include "system.h"
-#include "macros.h"
+
+#ifdef CONFIG_SPIRAM
+#define ALLOC(s) heap_caps_malloc(s, MALLOC_CAP_SPIRAM)
+#else
+#define ALLOC(s) malloc(s)
+#endif
 
 // fallback can nicely be tested with netcat
 // mkfifo /tmp/ncpipe
@@ -30,6 +35,14 @@ enum Selected
     PRIMARY = 0,
     SECONDARY = 1
 };
+
+static void safe_free(char *&ptr)
+{
+    if (ptr) {         // Check if pointer is not null
+        free(ptr);     // Free memory
+        ptr = nullptr; // Set pointer to null to prevent dangling pointer issues
+    }
+}
 
 int is_socket_connected(int socket)
 {
@@ -119,13 +132,12 @@ int StratumTask::connectStratum(const char *host_ip, uint16_t port)
 
     int err = ::connect(sock, (struct sockaddr *) &dest_addr, sizeof(dest_addr));
     if (err != 0) {
-        ESP_LOGE(m_tag, "Connect failed to %s:%d (errno %d: %s)", host_ip, port, errno, strerror(errno));
         shutdown(sock, SHUT_RDWR);
         close(sock);
         return 0;
     }
 
-    ESP_LOGI(m_tag, "Connected to %s:%d", host_ip, port);
+    ESP_LOGI(m_tag, "Connected");
 
     if (!setupSocketTimeouts(sock)) {
         ESP_LOGE(m_tag, "Error setting socket timeouts");
@@ -153,36 +165,6 @@ bool StratumTask::setupSocketTimeouts(int sock)
         ESP_LOGE(m_tag, "Failed to set socket send timeout");
         return false;
     }
-
-    // Enable TCP Keepalive
-    int enable = Config::isStratumKeepaliveEnabled() ? 1 : 0;
-    if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &enable, sizeof(enable)) < 0) {
-        ESP_LOGE(m_tag, "Failed to enable SO_KEEPALIVE");
-        return false;
-    }
-
-    if (enable) {
-        // Configure Keepalive parameters
-        int keepidle = 10;   // Start sending keepalive probes after 10 seconds of inactivity
-        int keepintvl = 5;   // Interval of 5 seconds between individual keepalive probes
-        int keepcnt = 3;     // Disconnect after 3 unanswered probes
-
-        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof(keepidle)) < 0) {
-            ESP_LOGW(m_tag, "TCP_KEEPIDLE not supported or failed to set");
-            // This might not be critical, so we could just log a warning and continue
-        }
-        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(keepintvl)) < 0) {
-            ESP_LOGE(m_tag, "Failed to set TCP_KEEPINTVL");
-        }
-        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof(keepcnt)) < 0) {
-            ESP_LOGE(m_tag, "Failed to set TCP_KEEPCNT");
-        }
-
-        ESP_LOGI(m_tag, "TCP Keepalive enabled: idle=%ds, interval=%ds, count=%d", keepidle, keepintvl, keepcnt);
-    } else {
-        ESP_LOGI(m_tag, "TCP Keepalive is disabled via config.");
-    }
-
     return true;
 }
 
@@ -199,13 +181,13 @@ void StratumTask::task()
         // we do it here because we could reload the config after
         // it was updated on the UI and settings
         if (!strlen(m_config->host)) {
-            vTaskDelay(pdMS_TO_TICKS(10000));
+            vTaskDelay(10000 / portTICK_PERIOD_MS);
             continue;
         }
 
         // should stay stopped?
         if (m_stopFlag) {
-            vTaskDelay(pdMS_TO_TICKS(10000));
+            vTaskDelay(10000 / portTICK_PERIOD_MS);
             continue;
         }
 
@@ -214,7 +196,7 @@ void StratumTask::task()
         if (!isWifiConnected()) {
             ESP_LOGI(m_tag, "WiFi disconnected, attempting to reconnect...");
             esp_wifi_connect();
-            vTaskDelay(pdMS_TO_TICKS(10000));
+            vTaskDelay(10000 / portTICK_PERIOD_MS);
             continue;
         }
 
@@ -222,7 +204,7 @@ void StratumTask::task()
         char ip[INET_ADDRSTRLEN] = {0};
         if (!resolveHostname(m_config->host, ip, sizeof(ip))) {
             ESP_LOGE(m_tag, "%s couldn't be resolved!", m_config->host);
-            vTaskDelay(pdMS_TO_TICKS(10000));
+            vTaskDelay(10000 / portTICK_PERIOD_MS);
             continue;
         }
 
@@ -230,7 +212,7 @@ void StratumTask::task()
 
         if (!(m_sock = connectStratum(ip, m_config->port))) {
             ESP_LOGE(m_tag, "Socket unable to connect to %s:%d (errno %d)", m_config->host, m_config->port, errno);
-            vTaskDelay(pdMS_TO_TICKS(10000));
+            vTaskDelay(10000 / portTICK_PERIOD_MS);
             continue;
         }
 
@@ -254,7 +236,7 @@ void StratumTask::task()
         m_manager->disconnectedCallback(m_index);
         m_isConnected = false;
 
-        vTaskDelay(pdMS_TO_TICKS(10000)); // Delay before attempting to reconnect
+        vTaskDelay(10000 / portTICK_PERIOD_MS); // Delay before attempting to reconnect
     }
     vTaskDelete(NULL);
 }
@@ -278,12 +260,7 @@ void StratumTask::stratumLoop()
 
     // mining.suggest_difficulty - ID: 4
     success = success && m_stratumAPI.suggestDifficulty(m_sock, Config::getStratumDifficulty());
-
-    // mining.mining.extranonce.subscribe - ID 5
-    if (m_config->enonceSub) {
-        success = success && m_stratumAPI.entranonceSubscribe(m_sock);
-    }
-
+    
     if (!success) {
         ESP_LOGE(m_tag, "Error sending Stratum setup commands!");
         return;
@@ -297,13 +274,10 @@ void StratumTask::stratumLoop()
 
     while (1) {
         if (!is_socket_connected(m_sock)) {
-            if (Config::isStratumKeepaliveEnabled()) {
-                ESP_LOGW(m_tag, "Socket disconnected — possible TCP KeepAlive timeout (enabled)");
-            } else {
-                ESP_LOGW(m_tag, "Socket disconnected — no KeepAlive active");
-            }
+            ESP_LOGE(m_tag, "Socket is not connected ...");
             break;
         }
+
         line = m_stratumAPI.receiveJsonRpcLine(m_sock);
         if (!line) {
             ESP_LOGE(m_tag, "Failed to receive JSON-RPC line, reconnecting ...");
@@ -364,6 +338,7 @@ void StratumTask::disconnect()
 
 StratumManager::StratumManager()
 {
+    m_stratum_api_v1_message = (StratumApiV1Message *) ALLOC(sizeof(StratumApiV1Message));
 }
 
 bool StratumManager::isUsingFallback()
@@ -406,12 +381,13 @@ void StratumManager::reconnectTimerCallbackWrapper(TimerHandle_t xTimer)
 // Reconnect Timer Callback
 void StratumManager::reconnectTimerCallback(TimerHandle_t xTimer)
 {
-    PThreadGuard lock(m_mutex);
+    pthread_mutex_lock(&m_mutex);
     // Check if primary is still disconnected
     if (!isConnected(Selected::PRIMARY)) {
         connect(Selected::SECONDARY);
         m_selected = Selected::SECONDARY;
     }
+    pthread_mutex_unlock(&m_mutex);
 }
 
 // Start the reconnect timer
@@ -438,13 +414,15 @@ void StratumManager::stopReconnectTimer()
 // Connected Callback
 void StratumManager::connectedCallback(int index)
 {
-    PThreadGuard lock(m_mutex);
+    pthread_mutex_lock(&m_mutex);
 
     if (index == Selected::PRIMARY) {
         m_selected = Selected::PRIMARY;
         disconnect(Selected::SECONDARY);
         stopReconnectTimer(); // Stop reconnect attempts
     }
+
+    pthread_mutex_unlock(&m_mutex);
 }
 
 // Disconnected Callback
@@ -465,11 +443,6 @@ void StratumManager::task()
 {
     System *system = &SYSTEM_MODULE;
 
-    ESP_LOGI("StratumManager", "Subscribing to task watchdog.");
-    if (esp_task_wdt_add(NULL) != ESP_OK) {
-        ESP_LOGE("StratumManager", "Failed to add task to watchdog!");
-    }
-
     // Create the Stratum tasks for both pools
     for (int i = 0; i < 2; i++) {
         m_stratumTasks[i] = new StratumTask(this, i, system->getStratumConfig(i));
@@ -485,10 +458,10 @@ void StratumManager::task()
 
     // Watchdog Task Loop (optional, if needed)
     while (1) {
-        vTaskDelay(pdMS_TO_TICKS(30000));
+        vTaskDelay(30000 / portTICK_PERIOD_MS);
 
         // Reset watchdog if there was a submit response within the last hour
-        if (m_lastSubmitResponseTimestamp && ((esp_timer_get_time() - m_lastSubmitResponseTimestamp) / 1000000) < 3600) {
+        if (((esp_timer_get_time() - m_lastSubmitResponseTimestamp) / 1000000) < 3600) {
             esp_task_wdt_reset();
         }
     }
@@ -516,20 +489,8 @@ int StratumManager::getCurrentPoolPort()
     return m_stratumTasks[m_selected]->getPort();
 }
 
-void StratumManager::freeStratumV1Message(StratumApiV1Message *message) {
-    if (!message) {
-        return;
-    }
-    StratumApi::freeMiningNotify(message->mining_notification);
-    safe_free(message->mining_notification);
-    safe_free(message->extranonce_str);
-}
-
 void StratumManager::dispatch(int pool, JsonDocument &doc)
 {
-    // ensure consistent use of m_stratum_api_v1_message
-    PThreadGuard lock(m_mutex);
-
     // only accept data from the selected pool
     if (pool != m_selected) {
         return;
@@ -539,58 +500,52 @@ void StratumManager::dispatch(int pool, JsonDocument &doc)
 
     const char *tag = selected->getTag();
 
-    // we keep the m_stratum_api_v1_message in the class
-    // to not have the struct on the stack
-    memset(&m_stratum_api_v1_message, 0, sizeof(StratumApiV1Message));
+    memset(m_stratum_api_v1_message, 0, sizeof(StratumApiV1Message));
 
-    if (!StratumApi::parse(&m_stratum_api_v1_message, doc)) {
+    if (!StratumApi::parse(m_stratum_api_v1_message, doc)) {
         ESP_LOGE(m_tag, "error in stratum");
-        // free memory
-        freeStratumV1Message(&m_stratum_api_v1_message);
         return;
     }
 
-    switch (m_stratum_api_v1_message.method) {
+    switch (m_stratum_api_v1_message->method) {
     case MINING_NOTIFY: {
-        SYSTEM_MODULE.notifyNewNtime(m_stratum_api_v1_message.mining_notification->ntime);
+        SYSTEM_MODULE.notifyNewNtime(m_stratum_api_v1_message->mining_notification->ntime);
 
         // abandon work clears the asic job list
         // also clear on first job
-        if (selected->m_firstJob || m_stratum_api_v1_message.should_abandon_work) {
+        if (selected->m_firstJob || m_stratum_api_v1_message->should_abandon_work) {
             cleanQueue();
             selected->m_firstJob = false;
         }
-        create_job_mining_notify(m_stratum_api_v1_message.mining_notification);
+        create_job_mining_notify(m_stratum_api_v1_message->mining_notification);
+
+        // free notify
+        if (m_stratum_api_v1_message->mining_notification) {
+            StratumApi::freeMiningNotify(m_stratum_api_v1_message->mining_notification);
+            free(m_stratum_api_v1_message->mining_notification);
+        }
         break;
     }
 
     case MINING_SET_DIFFICULTY: {
-        SYSTEM_MODULE.setPoolDifficulty(m_stratum_api_v1_message.new_difficulty);
-        if (create_job_set_difficulty(m_stratum_api_v1_message.new_difficulty)) {
-            ESP_LOGI(tag, "Set stratum difficulty: %ld", m_stratum_api_v1_message.new_difficulty);
+        SYSTEM_MODULE.setPoolDifficulty(m_stratum_api_v1_message->new_difficulty);
+        if (create_job_set_difficulty(m_stratum_api_v1_message->new_difficulty)) {
+            ESP_LOGI(tag, "Set stratum difficulty: %ld", m_stratum_api_v1_message->new_difficulty);
         }
         break;
     }
 
     case MINING_SET_VERSION_MASK:
     case STRATUM_RESULT_VERSION_MASK: {
-        ESP_LOGI(tag, "Set version mask: %08lx", m_stratum_api_v1_message.version_mask);
-        create_job_set_version_mask(m_stratum_api_v1_message.version_mask);
-        break;
-    }
-
-    case MINING_SET_EXTRANONCE: {
-        // the new extranonce gets active with the next mining.notify
-        ESP_LOGI(tag, "Set next enonce %s enonce2-len: %d", m_stratum_api_v1_message.extranonce_str,
-                 m_stratum_api_v1_message.extranonce_2_len);
-        set_next_enonce(m_stratum_api_v1_message.extranonce_str, m_stratum_api_v1_message.extranonce_2_len);
+        ESP_LOGI(tag, "Set version mask: %08lx", m_stratum_api_v1_message->version_mask);
+        create_job_set_version_mask(m_stratum_api_v1_message->version_mask);
         break;
     }
 
     case STRATUM_RESULT_SUBSCRIBE: {
-        ESP_LOGI(tag, "Set enonce %s enonce2-len: %d", m_stratum_api_v1_message.extranonce_str,
-                 m_stratum_api_v1_message.extranonce_2_len);
-        create_job_set_enonce(m_stratum_api_v1_message.extranonce_str, m_stratum_api_v1_message.extranonce_2_len);
+        ESP_LOGI(tag, "Set enonce %s enonce2-len: %d", m_stratum_api_v1_message->extranonce_str,
+                 m_stratum_api_v1_message->extranonce_2_len);
+        create_job_set_enonce(m_stratum_api_v1_message->extranonce_str, m_stratum_api_v1_message->extranonce_2_len);
         break;
     }
 
@@ -600,7 +555,7 @@ void StratumManager::dispatch(int pool, JsonDocument &doc)
     }
 
     case STRATUM_RESULT: {
-        if (m_stratum_api_v1_message.response_success) {
+        if (m_stratum_api_v1_message->response_success) {
             ESP_LOGI(tag, "message result accepted");
             SYSTEM_MODULE.notifyAcceptedShare();
         } else {
@@ -612,7 +567,7 @@ void StratumManager::dispatch(int pool, JsonDocument &doc)
     }
 
     case STRATUM_RESULT_SETUP: {
-        if (m_stratum_api_v1_message.response_success) {
+        if (m_stratum_api_v1_message->response_success) {
             ESP_LOGI(tag, "setup message accepted");
         } else {
             ESP_LOGE(tag, "setup message rejected");
@@ -624,9 +579,6 @@ void StratumManager::dispatch(int pool, JsonDocument &doc)
         // NOP
     }
     }
-
-    // free memory
-    freeStratumV1Message(&m_stratum_api_v1_message);
 }
 
 void StratumManager::submitShare(const char *jobid, const char *extranonce_2, const uint32_t ntime, const uint32_t nonce,

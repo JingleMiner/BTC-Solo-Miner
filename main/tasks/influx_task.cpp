@@ -6,14 +6,13 @@
 
 #include "global_state.h"
 #include "nvs_config.h"
-#include "ping_task.h"
 #include "influx_task.h"
 
 static const char *TAG = "influx_task";
 
 static Influx *influxdb = 0;
 
-int last_block_found = 0;
+bool last_block_found = false;
 
 // Timer callback function to increment uptime counters
 void uptime_timer_callback(TimerHandle_t xTimer)
@@ -63,8 +62,7 @@ static void influx_task_fetch_from_system_module(System *module)
     }
 
     // fetch hashrate
-    influxdb->m_stats.hashing_speed = module->getCurrentHashrate();
-    influxdb->m_stats.hashing_speed_1m = module->getCurrentHashrate1m();
+    influxdb->m_stats.hashing_speed = module->getCurrentHashrate10m();
 
     // accepted
     influxdb->m_stats.accepted = module->getSharesAccepted();
@@ -72,20 +70,16 @@ static void influx_task_fetch_from_system_module(System *module)
     // rejected
     influxdb->m_stats.not_accepted = module->getSharesRejected();
 
-    // duplicate
-    influxdb->m_stats.duplicate_hashes = module->getDuplicateHWNonces();
-
     // pool errors
     influxdb->m_stats.pool_errors = module->getPoolErrors();
 
     // pool difficulty
     influxdb->m_stats.difficulty = module->getPoolDifficulty();
 
-    // Ping RTT
-    influxdb->m_stats.last_ping_rtt = get_last_ping_rtt();
-
-    // found blocks
-    int found = module->getFoundBlocks();
+    // found block
+    // firmware sets the flag but never removes it
+    // so detect the "edge"
+    bool found = module->isFoundBlock();
     if (found && !last_block_found) {
         influxdb->m_stats.blocks_found++;
         influxdb->m_stats.total_blocks_found++;
@@ -97,7 +91,7 @@ static void forever()
 {
     ESP_LOGI(TAG, "halting influx_task");
     while (1) {
-        vTaskDelay(pdMS_TO_TICKS(15000));
+        vTaskDelay(15000 / portTICK_PERIOD_MS);
     }
 }
 
@@ -156,7 +150,7 @@ void influx_task(void *pvParameters)
         if (loaded_values_ok) {
             break;
         }
-        vTaskDelay(pdMS_TO_TICKS(15000));
+        vTaskDelay(15000 / portTICK_PERIOD_MS);
     }
 
     ESP_LOGI(TAG, "last values: total_uptime: %d, total_best_difficulty: %.3f, total_blocks_found: %d",
@@ -176,6 +170,6 @@ void influx_task(void *pvParameters)
         influx_task_fetch_from_system_module(module);
         influxdb->write();
         pthread_mutex_unlock(&influxdb->m_lock);
-        vTaskDelay(pdMS_TO_TICKS(15000));
+        vTaskDelay(15000 / portTICK_PERIOD_MS);
     }
 }

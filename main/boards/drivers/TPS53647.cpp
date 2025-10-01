@@ -22,7 +22,7 @@
 #define NACK_VALUE ((i2c_ack_type_t) 0x1)
 #define MAX_BLOCK_LEN 32
 
-#define SMBUS_DEFAULT_TIMEOUT pdMS_TO_TICKS(1000)
+#define SMBUS_DEFAULT_TIMEOUT (1000 / portTICK_PERIOD_MS)
 
 #define TPS53647_EN_PIN GPIO_NUM_10
 
@@ -472,19 +472,19 @@ float TPS53647::get_iout(void)
  * A value between TPS53647_INIT_VOUT_MIN and TPS53647_INIT_VOUT_MAX
  * send a 0 to turn off the output
  **/
-bool TPS53647::set_vout(float volts)
+void TPS53647::set_vout(float volts)
 {
     if (volts == 0) {
         // turn off output
         // write_byte(PMBUS_OPERATION, OPERATION_OFF);
         power_disable();
-        return true;
+        return;
     }
 
     // make sure we're in range
     if ((volts < m_initVOutMin) || (volts > m_initVOutMax)) {
         ESP_LOGE(TAG, "ERR- Voltage requested (%f V) is out of range", volts);
-        return false;
+        return;
     }
 
     //    write_byte(PMBUS_OPERATION, OPERATION_ON);
@@ -497,7 +497,6 @@ bool TPS53647::set_vout(float volts)
     // write_byte(PMBUS_OPERATION, OPERATION_ON);
 
     ESP_LOGI(TAG, "Vout changed to %1.2f V", volts);
-    return true;
 }
 
 void TPS53647::show_voltage_settings(void)

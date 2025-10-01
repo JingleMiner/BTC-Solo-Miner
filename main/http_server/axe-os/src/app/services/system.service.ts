@@ -4,8 +4,6 @@ import { delay, Observable, of } from 'rxjs';
 import { eASICModel } from '../models/enum/eASICModel';
 import { ISystemInfo } from '../models/ISystemInfo';
 import { IHistory } from '../models/IHistory';
-import { IAlertSettings } from '../models/IAlertSettings';
-import { AsicInfo } from '../models/IAsicInfo';
 
 import { environment } from '../../environments/environment';
 import { IInfluxDB } from '../models/IInfluxDB';
@@ -32,10 +30,9 @@ const defaultInfo: ISystemInfo = {
   coreVoltage: 1200,
   defaultCoreVoltage: 1200,
   coreVoltageActual: 1200,
-  hostname: "Bitaxe",
+  hostname: "JingleMiner",
   hostip: "192.168.0.123",
   macAddr: "DE:AD:C0:DE:0B:7C",
-  wifiRSSI: -90,
   ssid: "default",
   wifiPass: "password",
   wifiStatus: "Connected!",
@@ -45,15 +42,13 @@ const defaultInfo: ISystemInfo = {
   asicCount: 1,
   smallCoreCount: 672,
   ASICModel: eASICModel.BM1368,
-  deviceModel: "NerdQAxe+",
+  deviceModel: "JingleMiner",
   stratumURL: "public-pool.io",
   stratumPort: 21496,
-  stratumUser: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d.bitaxe-U1",
-  stratumEnonceSubscribe: 0,
+  stratumUser: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d.JingleMiner",
   fallbackStratumURL: "",
   fallbackStratumPort: 3333,
   fallbackStratumUser: "",
-  fallbackStratumEnonceSubscribe: 0,
   isUsingFallbackStratum: false,
   isStratumConnected: false,
   frequency: 485,
@@ -67,13 +62,13 @@ const defaultInfo: ISystemInfo = {
   fanspeed: 100,
   fanrpm: 0,
   autoscreenoff: 0,
+  autoScreenCycle: 0,
+  autoScreenCycleInterval: 10,
   lastResetReason: "Unknown",
   jobInterval: 1200,
   stratumDifficulty: 1000,
   lastpingrtt: 0.00,
   poolDifficulty: 0,
-  stratum_keep: 0,
-  vrFrequency: 25000,
 
   pidTargetTemp: 55,
   pidP: 2.0,
@@ -92,18 +87,6 @@ const defaultInfo: ISystemInfo = {
   }
 }
 
-const defaultAsicInfo: AsicInfo = {
-  ASICModel: 'BM1368',
-  deviceModel: 'Supra',
-  asicCount: 1,
-  swarmColor: 'blue',
-  defaultFrequency: 490,
-  defaultVoltage: 1166,
-  absMaxFrequency: 800,
-  absMaxVoltage: 1400,
-  frequencyOptions: [400, 425, 450, 475, 485, 490, 500, 525, 550, 575],
-  voltageOptions: [1100, 1150, 1166, 1200, 1250, 1300],
-};
 
 @Injectable({
   providedIn: 'root'
@@ -126,14 +109,6 @@ export class SystemService {
     }
   }
 
-  public getAsicInfo(uri: string = ''): Observable<AsicInfo> {
-    if (environment.production) {
-      return this.httpClient.get<AsicInfo>(`${uri}/api/system/asic`);
-    } else {
-      return of(defaultAsicInfo).pipe(delay(500));
-    }
-  }
-
   public getInfluxInfo(uri: string = ''): Observable<IInfluxDB> {
     if (environment.production) {
       return this.httpClient.get(`${uri}/api/influx/info`) as Observable<IInfluxDB>;
@@ -144,8 +119,8 @@ export class SystemService {
           influxURL: "http://192.168.0.1",
           influxPort: 8086,
           influxToken: "TOKEN",
-          influxBucket: "BUCKET",
-          influxOrg: "ORG",
+          influxBucket: "JingleMiner",
+          influxOrg: "JingleMiner",
           influxPrefix: "mainnet_stats"
         }
       ).pipe(delay(1000));
@@ -221,34 +196,8 @@ export class SystemService {
     return this.httpClient.patch(`${uri}/api/swarm`, swarmConfig);
   }
 
-
-  public getAlertInfo(uri: string = ''): Observable<IAlertSettings> {
-    if (environment.production) {
-      return this.httpClient.get(`${uri}/api/alert/info`) as Observable<IAlertSettings>;
-    } else {
-      return of({
-        alertDiscordEnable: 0,
-        alertDiscordWebhook: 'https://discord.com/api/webhooks/xxx/yyy'
-      }).pipe(delay(1000));
-    }
-  }
-
-  public updateAlertInfo(uri: string = '', data: IAlertSettings): Observable<any> {
-    if (environment.production) {
-      return this.httpClient.post(`${uri}/api/alert/update`, data);
-    } else {
-      console.log('Mock updateAlertInfo called:', data);
-      return of(true).pipe(delay(500));
-    }
-  }
-
-  public sendAlertTest(uri: string = ''): Observable<any> {
-    if (environment.production) {
-      return this.httpClient.post(`${uri}/api/alert/test`, {}, {responseType: 'text' });
-    } else {
-      console.log('Mock sendAlertTest');
-      return of(true).pipe(delay(500));
-    }
+  public scanWifi(uri: string = ''): Observable<{ ssid: string, rssi: number, authmode: number }[]> {
+    return this.httpClient.get(`${uri}/api/system/wifi/scan`) as Observable<{ ssid: string, rssi: number, authmode: number }[]>;
   }
 }
 

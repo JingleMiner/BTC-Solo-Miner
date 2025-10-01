@@ -1,7 +1,6 @@
 <ng-template #loading>
     <h4>Loading...</h4>
 </ng-template>
-
 <ng-container *ngIf="form != null; else loading">
     <form [formGroup]="form">
         <nb-card>
@@ -16,13 +15,25 @@
                 <div class="form-row">
                     <label for="ssid" class="form-label">WiFi SSID:</label>
                     <div class="form-control-wrapper">
-                        <input nbInput id="ssid" type="text" formControlName="ssid" />
+                        <nb-select formControlName="ssid"
+                                   (openedChange)="onSsidOpened($event)"
+                                   (selectedChange)="onSsidSelected($event)"
+                                   [nbSpinner]="scanningWifi"
+                                   [placeholder]="(scanningWifi || wifiList.length === 0) ? 'Scanning WiFi...' : 'Select WiFi Network'">
+                            <nb-option *ngFor="let ap of wifiList" [value]="ap.ssid">{{ ap.ssid }}</nb-option>
+                        </nb-select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label for="ssidManual" class="form-label">WiFi SSID (Manual):</label>
+                    <div class="form-control-wrapper">
+                        <input nbInput id="ssidManual" type="text" formControlName="ssid" placeholder="Input WiFi SSID" />
                     </div>
                 </div>
                 <div class="form-row">
                     <label for="wifiPass" class="form-label">WiFi Password:</label>
                     <div class="input-with-icon">
-                        <input nbInput id="wifiPass" formControlName="wifiPass"
+                        <input nbInput id="wifiPass" #wifiPassInput formControlName="wifiPass"
                             [type]="showWifiPassword ? 'text' : 'password'" placeholder="Enter WiFi password" />
                         <button nbButton ghost size="small" (click)="toggleWifiPasswordVisibility()" type="button"
                             class="icon-button">
@@ -68,9 +79,6 @@
                             </button>
                         </div>
                     </div>
-                    <div class="form-row">
-                        <nb-checkbox formControlName="stratumEnonceSubscribe">Enable Extranonce Subscribe</nb-checkbox>
-                    </div>
                 </nb-card-body>
             </nb-tab>
 
@@ -110,9 +118,6 @@
                             </button>
                         </div>
                     </div>
-                    <div class="form-row">
-                        <nb-checkbox formControlName="fallbackStratumEnonceSubscribe">Enable Extranonce Subscribe</nb-checkbox>
-                    </div>
                 </nb-card-body>
             </nb-tab>
         </nb-tabset>
@@ -125,74 +130,42 @@
                 </div>
             </nb-card-header>
             <nb-card-body>
-                <ng-container *ngIf="supportLevel === 0">
+                <ng-container *ngIf="!devToolsOpen">
                     <div class="form-row">
-                        <label for="frequency" class="form-label">Frequency:</label>
+                        <label for="miningPerformance" class="form-label">Mining Performance:</label>
                         <div class="form-control-wrapper">
-                            <nb-select formControlName="frequency" [ngClass]="{'unsafe-setting': isFrequencyTooHigh()}">
-                                <nb-option *ngFor="let option of frequencyOptions" [value]="option.value">{{ option.name
-                                    }}</nb-option>
+                            <nb-select id="miningPerformance" formControlName="miningPerformance">
+                                <nb-option value="energy_saving">Energy Saving</nb-option>
+                                <nb-option value="normal">Normal</nb-option>
+                                <nb-option value="overclock">Overclock</nb-option>
+                                <nb-option value="custom">Custom</nb-option>
                             </nb-select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <label for="coreVoltage" class="form-label">Core Voltage:</label>
-                        <div class="form-control-wrapper">
-                            <nb-select formControlName="coreVoltage" [ngClass]="{'unsafe-setting': isVoltageTooHigh()}">
-                                <nb-option *ngFor="let option of voltageOptions" [value]="option.value">{{ option.name
-                                    }}</nb-option>
-                            </nb-select>
+                            <small></small>
+                            <div *ngIf="form.controls['miningPerformance'].value === 'custom'" style="margin-top:10px;">
+                                <input nbInput id="customFrequency" formControlName="customFrequency" type="number" min="500" max="650" step="1" placeholder="Enter 500-650 MHz" />
+                                <small *ngIf="form.controls['customFrequency'].invalid" style="color: #dc3545; display: block; margin-top: 4px;">
+                                    Frequency must be an integer between 500 and 650 MHz.
+                                </small>
+                                <small style="display: block; margin-top: 4px;">Decimals are rounded down automatically.</small>
+                            </div>
+                            <div style="margin-top:6px;">
+                                <small>Frequency: <b>{{ form.controls['frequency']?.value }}</b> MHz</small>
+                                <br>
+                                <small>Core Voltage: <b>{{ (form.controls['coreVoltage']?.value / 1000) | number:'1.2-2' }}</b> V</small>
+                            </div>
                         </div>
                     </div>
                 </ng-container>
 
-                <ng-container *ngIf="supportLevel >= 1">
-                    <div class="form-row">
-                        <label for="frequency" class="form-label">Frequency:</label>
-                        <div class="form-control-wrapper">
-                            <input (input)="checkFrequencyLimit()" [ngClass]="{'unsafe-setting': isFrequencyTooHigh()}"
-                                nbInput id="frequency" formControlName="frequency" type="number" />
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <label for="coreVoltage" class="form-label">Core Voltage:</label>
-                        <div class="form-control-wrapper">
-                            <input (input)="checkVoltageLimit()" [ngClass]="{'unsafe-setting': isVoltageTooHigh()}"
-                                nbInput id="coreVoltage" formControlName="coreVoltage" type="number" />
-                        </div>
-                    </div>
-                </ng-container>
-                <ng-container *ngIf="supportLevel >= 2">
+                <ng-container *ngIf="devToolsOpen">
+                    <!-- Advanced numeric inputs for Frequency/Core Voltage removed -->
                     <div class="form-row">
                         <label for="jobInterval" class="form-label">Job Interval:</label>
                         <div class="form-control-wrapper">
                             <input nbInput id="jobInterval" formControlName="jobInterval" type="number" /><br />
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-control-wrapper-no-label">
                             <small>Mining job switching time in milliseconds.</small>
                         </div>
                     </div>
-                    <div class="form-row" *ngIf="defaultVrFrequency !== undefined">
-                    <label for="vrFrequency" class="form-label">VR-Frequency:</label>
-                    <div class="form-control-wrapper">
-                        <input nbInput id="vrFrequency" formControlName="vrFrequency" type="number" /><br />
-                    </div>
-                    </div>
-                    <div class="form-row" *ngIf="defaultVrFrequency !== undefined">
-                        <div class="form-control-wrapper-no-label">
-                            <small>
-                            Version Rolling Frequency.<!-- (Default <b>{{ defaultVrFrequency | number:'1.3-3' }} Hz</b>).-->
-                            </small>
-                            <br/>
-                            <small>
-                            Calculated wrap-around time: <b>{{ wrapAroundTime | number:'1.2-2' }} s</b>
-                            </small>
-                        </div>
-                    </div>
-                </ng-container>
-                <ng-container *ngIf="supportLevel >= 1">
                     <div class="form-row">
                         <label for="stratumDifficulty" class="form-label">Difficulty:</label>
                         <div class="form-control-wrapper">
@@ -211,7 +184,8 @@
                     <div class="form-control-wrapper">
                         <nb-select fullWidth formControlName="autofanspeed">
                             <nb-option [value]="0">Manual</nb-option>
-                            <nb-option *ngIf="form.controls['pidTargetTemp'].value != -1" [value]="2">Auto Fan Control (PID)</nb-option>
+                            <nb-option [value]="1">Classic AFC</nb-option>
+                            <nb-option *ngIf="form.controls['pidTargetTemp'].value != -1" [value]="2">Experimental PID</nb-option>
                         </nb-select>
                     </div>
                 </div>
@@ -244,9 +218,9 @@
                         </div>
                     </div>
 
-                    <div *ngIf="supportLevel >= 1" class="form-row-separator" style="font-weight:bold;">PID Parameters:</div>
+                    <div *ngIf="devToolsOpen" class="form-row-separator" style="font-weight:bold;">PID Parameters:</div>
 
-                    <div *ngIf="supportLevel >= 1">
+                    <div *ngIf="devToolsOpen">
                         <div class="form-row">
                             <label class="form-label">PID P:</label>
                             <div class="form-control-wrapper">
@@ -273,10 +247,10 @@
                         <input nbInput id="overheat_temp" formControlName="overheat_temp" type="number" />
                     </div>
                 </div>
-                <div class="form-row" *ngIf="supportLevel >= 1">
+                <div class="form-row" *ngIf="devToolsOpen">
                     <nb-checkbox formControlName="autofanpolarity">Autodetect Fan Polarity <small>(Recommended)</small></nb-checkbox>
                 </div>
-                <div class="form-row" *ngIf="supportLevel >= 1">
+                <div class="form-row" *ngIf="devToolsOpen">
                     <nb-checkbox formControlName="invertfanpolarity">Invert Fan Polarity</nb-checkbox>
                 </div>
 
@@ -285,21 +259,29 @@
         <nb-card>
             <nb-card-header>Misc Settings</nb-card-header>
             <nb-card-body>
+                <div class="form-row auto-screen-cycle-row">
+                    <div class="form-control-wrapper">
+                        <nb-checkbox formControlName="autoScreenCycle">Auto Screen Rotation</nb-checkbox>
+                        <div *ngIf="form.controls['autoScreenCycle'].value" class="auto-screen-interval">
+                            <input nbInput formControlName="autoScreenCycleInterval" type="number" min="5" max="600" step="1" placeholder="Interval (seconds)" />
+                            <small style="display: block; margin-top: 4px;">Seconds between screen changes (default 10s).</small>
+                            <small *ngIf="form.controls['autoScreenCycleInterval'].touched && form.controls['autoScreenCycleInterval'].invalid" style="color: #dc3545; display: block; margin-top: 4px;">Enter an integer between 5 and 600.</small>
+                            <small style="display: block; margin-top: 4px;">Decimals are rounded down automatically.</small>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-row">
                     <nb-checkbox formControlName="flipscreen">Flip Screen</nb-checkbox>
                 </div>
                 <div class="form-row">
                     <nb-checkbox formControlName="autoscreenoff">Automatic Screen Shutdown</nb-checkbox>
                 </div>
-                <div class="form-row">
-                  <nb-checkbox formControlName="stratum_keep">Enable Stratum TCP Keepalive</nb-checkbox>
-                </div>
             </nb-card-body>
         </nb-card>
         <div class="d-flex align-items-center justify-content-between mt-2">
             <div>
                 <div class="d-flex align-items-center justify-content-between mt-2">
-                    <button nbButton size="small" [disabled]="form.invalid" (click)="confirmSave(warningDialog)"
+                    <button nbButton size="small" [disabled]="form.invalid" (click)="updateSystem()"
                         status="danger">
                         Save
                     </button>
@@ -315,42 +297,10 @@
         </div>
     </form>
 
-    <ng-template #warningDialog>
-        <nb-card accent="danger" style="width: 384px">
-            <nb-card-header style="color: red;">⚠️ Warning: Saving Unsafe Settings ⚠️</nb-card-header>
-            <nb-card-body>
-                <p>
-                    You are about to save settings that exceed the safe operating limits of your device. Proceeding with
-                    these settings may result in:
-                </p>
-                <ul class="m-0 pl-4">
-                    <li><strong>Voids your warranty</strong></li>
-                    <li><strong>May cause permanent hardware damage</strong></li>
-                    <li><strong>Can lead to system instability and crashes</strong></li>
-                    <li><strong>Reduces device lifespan</strong></li>
-                    <li>May cause unexpected reboots or failures</li>
-                    <li>Can lead to excessive heat and potential overheating</li>
-                    <li>Increases power consumption</li>
-                    <li>May cause unpredictable performance issues</li>
-                    <li>⚠️ <strong>MAY SUMMON DRAGONS! 🐉🔥</strong></li>
-                </ul><br />
-
-                <p><b>Are you sure you want to proceed?</b></p>
-                <p>
-                    <nb-checkbox [(ngModel)]="dontShowWarning">
-                        Don't show this warning again
-                    </nb-checkbox>
-                </p>
-                <div class="d-flex justify-content-between">
-                    <button nbButton status="danger" (click)="saveAfterWarning()">Proceed Anyway</button>
-                    <button nbButton status="basic" (click)="dialogRef?.close()">Cancel</button>
-                </div>
-            </nb-card-body>
-        </nb-card>
-    </ng-template>
-
+    
 
 
 
 
 </ng-container>
+

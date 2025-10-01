@@ -13,12 +13,8 @@ NerdQaxePlus2::NerdQaxePlus2() : NerdQaxePlus() {
     m_ifault = (float) (m_imax - 5);
 
     m_asicJobIntervalMs = 500;
-    m_asicFrequencies = {500, 515, 525, 550, 575, 590, 600};
-    m_asicVoltages = {1120, 1130, 1140, 1150, 1160, 1170, 1180, 1190, 1200};
     m_defaultAsicFrequency = m_asicFrequency = 600;
     m_defaultAsicVoltageMillis = m_asicVoltageMillis = 1150; // default voltage
-    m_absMaxAsicFrequency = 800;
-    m_absMaxAsicVoltageMillis = 1400;
     m_initVoltageMillis = 1200;
 
     m_pidSettings.targetTemp = 55;
@@ -38,8 +34,6 @@ NerdQaxePlus2::NerdQaxePlus2() : NerdQaxePlus() {
     m_theme = new ThemeNerdqaxeplus2();
 #endif
     m_asics = new BM1370();
-    m_hasHashCounter = true;
-    m_vrFrequency = m_defaultVrFrequency = m_asics->getDefaultVrFrequency();
 }
 
 float NerdQaxePlus2::getTemperature(int index) {
@@ -50,4 +44,3 @@ float NerdQaxePlus2::getTemperature(int index) {
     // we can't read the real chip temps but this should be about right
     return temp + 10.0f; // offset of 10°C
 }
-

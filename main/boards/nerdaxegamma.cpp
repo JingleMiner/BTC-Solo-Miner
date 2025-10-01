@@ -15,7 +15,7 @@
 
 bool tempinit = false;
 
-static const char* TAG="nerdaxeGamma";
+static const char* TAG="JingleMiner";
 
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
@@ -27,8 +27,6 @@ NerdaxeGamma::NerdaxeGamma() : NerdAxe() {
     m_asicCount = 1;
 
     m_asicJobIntervalMs = 1500;
-    m_asicFrequencies = {500, 515, 525, 550, 575};
-    m_asicVoltages = {1120, 1130, 1140, 1150, 1160, 1170, 1180, 1190, 1200};
     m_defaultAsicFrequency = m_asicFrequency = 515;
     m_defaultAsicVoltageMillis = m_asicVoltageMillis = 1150;
     m_initVoltageMillis = 1150;
@@ -53,12 +51,7 @@ NerdaxeGamma::NerdaxeGamma() : NerdAxe() {
 #ifdef NERDAXEGAMMA
     m_theme = new ThemeNerdaxegamma();
 #endif
-
-    m_swarmColorName = "#e7cf00"; // yellow
-
     m_asics = new BM1370();
-    m_hasHashCounter = true;
-    m_vrFrequency = m_defaultVrFrequency = m_asics->getDefaultVrFrequency();
 }
 
 
@@ -95,7 +88,7 @@ bool NerdaxeGamma::initBoard()
 }
 
 void NerdaxeGamma::shutdown() {
-    setVoltage(0.0);
+    // NOP / TODO
 }
 
 bool NerdaxeGamma::initAsics() {
@@ -104,40 +97,40 @@ bool NerdaxeGamma::initAsics() {
     setVoltage(0.0);
 
     // wait 500ms
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 
     // set reset low
     gpio_set_level(BM1370_RST_PIN, 0);
 
     // wait 250ms
-    vTaskDelay(pdMS_TO_TICKS(250));
+    vTaskDelay(250 / portTICK_PERIOD_MS);
 
     // set the init voltage
     // use the higher voltage for initialization
     setVoltage((float) MAX(m_initVoltageMillis, m_asicVoltageMillis) / 1000.0f);
 
     // wait 500ms
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 
     // release reset pin
     gpio_set_level(BM1370_RST_PIN, 1);
 
     // delay for 250ms
-    vTaskDelay(pdMS_TO_TICKS(250));
+    vTaskDelay(250 / portTICK_PERIOD_MS);
 
     SERIAL_clear_buffer();
-    m_chipsDetected = m_asics->init(m_asicFrequency, m_asicCount, m_asicMaxDifficulty, m_vrFrequency);
+    m_chipsDetected = m_asics->init(m_asicFrequency, m_asicCount, m_asicMaxDifficulty);
     if (!m_chipsDetected) {
         ESP_LOGE(TAG, "error initializing asics!");
         return false;
     }
     int maxBaud = m_asics->setMaxBaud();
     // no idea why a delay is needed here starting with esp-idf 5.4 🙈
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
     SERIAL_set_baud(maxBaud);
     SERIAL_clear_buffer();
 
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 
     m_isInitialized = true;
     return true;
@@ -145,12 +138,10 @@ bool NerdaxeGamma::initAsics() {
 
 bool NerdaxeGamma::setVoltage(float core_voltage)
 {
-    if (!validateVoltage(core_voltage)) {
-        return false;
-    }
-
     ESP_LOGI(TAG, "Set ASIC voltage = %.3fV", core_voltage);
-    return TPS546_set_vout(core_voltage);
+    TPS546_set_vout(core_voltage);
+
+    return true;
 }
 
 float NerdaxeGamma::getTemperature(int index) {

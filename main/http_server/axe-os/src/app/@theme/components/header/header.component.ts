@@ -19,10 +19,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   themes = [
     {
-      value: 'cosmic',
-      name: 'Default',
-    },
-    {
       value: 'default',
       name: 'Light',
     },
@@ -32,7 +28,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     },
   ];
 
-  currentTheme = 'cosmic'; // Default theme if none is found in localStorage
+  currentTheme = 'default'; // Default theme if none is found in localStorage
   logoPath: string = ''; // Dynamically set logo path
   deviceModel: string = 'default'; // Fallback device model
 
@@ -114,7 +110,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     if (savedTheme && this.themes.some(t => t.value === savedTheme)) {
       this.currentTheme = savedTheme;
     } else {
-      this.currentTheme = 'cosmic'; // Default theme
+      this.currentTheme = 'dark'; // Default theme
     }
     this.themeService.changeTheme(this.currentTheme);
     this.updateLogo();

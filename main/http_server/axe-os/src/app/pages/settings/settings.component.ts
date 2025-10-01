@@ -17,8 +17,6 @@ import { NbToastrService } from '@nebular/theme';
 })
 export class SettingsComponent {
 
-  public form!: FormGroup;
-
   public firmwareUpdateProgress: number | null = 0;
   public websiteUpdateProgress: number | null = 0;
 
@@ -39,15 +37,13 @@ export class SettingsComponent {
   public isWebsiteUploading = false;
   public isFirmwareUploading = false;
 
+
   constructor(
-    private fb: FormBuilder,
     private systemService: SystemService,
     private toastrService: NbToastrService,
     private loadingService: LoadingService,
     private githubUpdateService: GithubUpdateService
   ) {
-
-
 
     window.addEventListener('resize', this.checkDevTools);
     this.checkDevTools();
@@ -58,52 +54,13 @@ export class SettingsComponent {
 
     this.info$ = this.systemService.getInfo(0).pipe(shareReplay({ refCount: true, bufferSize: 1 }))
 
-
     this.info$.pipe(this.loadingService.lockUIUntilComplete())
       .subscribe(info => {
         this.deviceModel = info.deviceModel;
         this.ASICModel = info.ASICModel;
-        this.form = this.fb.group({
-          flipscreen: [info.flipscreen == 1],
-          invertscreen: [info.invertscreen == 1],
-          autoscreenoff: [info.autoscreenoff == 0],
-          stratumURL: [info.stratumURL, [
-            Validators.required,
-            Validators.pattern(/^(?!.*stratum\+tcp:\/\/).*$/),
-            Validators.pattern(/^[^:]*$/),
-          ]],
-          stratumPort: [info.stratumPort, [
-            Validators.required,
-            Validators.pattern(/^[^:]*$/),
-            Validators.min(0),
-            Validators.max(65353)
-          ]],
-          stratumUser: [info.stratumUser, [Validators.required]],
-          stratumPassword: ['*****', [Validators.required]],
-          ssid: [info.ssid, [Validators.required]],
-          wifiPass: ['*****'],
-          coreVoltage: [info.coreVoltage, [Validators.required]],
-          frequency: [info.frequency, [Validators.required]],
-          jobInterval: [info.jobInterval, [Validators.required]],
-          autofanspeed: [info.autofanspeed == 1, [Validators.required]],
-          invertfanpolarity: [info.invertfanpolarity == 1, [Validators.required]],
-          fanspeed: [info.fanspeed, [Validators.required]],
-        });
-
-        this.form.controls['autofanspeed'].valueChanges.pipe(
-          startWith(this.form.controls['autofanspeed'].value)
-        ).subscribe(autofanspeed => {
-          if (autofanspeed) {
-            this.form.controls['fanspeed'].disable();
-          } else {
-            this.form.controls['fanspeed'].enable();
-          }
-        });
-        // Replace 'γ' with 'Gamma' if present
-        this.expectedFileName = `esp-miner-${this.deviceModel}.bin`.replace('γ', 'Gamma');
       });
-
   }
+
   private checkDevTools = () => {
     if (
       window.outerWidth - window.innerWidth > 160 ||
@@ -115,163 +72,66 @@ export class SettingsComponent {
     }
   };
 
-  public updateSystem() {
-
-    const form = this.form.getRawValue();
-
-    form.frequency = parseInt(form.frequency);
-    form.coreVoltage = parseInt(form.coreVoltage);
-    form.jobInterval = parseInt(form.jobInterval);
-
-    // bools to ints
-    form.flipscreen = form.flipscreen == true ? 1 : 0;
-    form.invertscreen = form.invertscreen == true ? 1 : 0;
-    form.invertfanpolarity = form.invertfanpolarity == true ? 1 : 0;
-    form.autofanspeed = form.autofanspeed == true ? 1 : 0;
-    form.autoscreenoff = form.autoscreenoff == true ? 1 : 0;
-
-    // Allow an empty wifi password
-    form.wifiPass = form.wifiPass == null ? '' : form.wifiPass;
-
-    if (form.wifiPass === '*****') {
-      delete form.wifiPass;
-    }
-    if (form.stratumPassword === '*****') {
-      delete form.stratumPassword;
-    }
-
-    if (form.fallbackStratumPassword === '*****') {
-      delete form.fallbackStratumPassword;
-    }
-
-    this.systemService.updateSystem(undefined, form)
-      .pipe(this.loadingService.lockUIUntilComplete())
-      .subscribe({
-        next: () => {
-          this.toastrService.success('Success!', 'Saved.');
-        },
-        error: (err: HttpErrorResponse) => {
-          this.toastrService.danger('Error.', `Could not save. ${err.message}`);
-        }
-      });
-  }
-
-
-  public onFirmwareFileSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      this.selectedFirmwareFile = input.files[0];
+  // 文件上传相关方法保持不变
+  public onFirmwareFileSelected(event: any): void {
+    const file: File = event.target.files[0];
+    if (file) {
+      this.selectedFirmwareFile = file;
     }
   }
 
-  public uploadFirmwareFile() {
-    if (!this.selectedFirmwareFile) {
-      this.toastrService.warning('No file selected', 'Warning');
-      return;
-    }
+  public uploadFirmwareFile(): void {
+    if (this.selectedFirmwareFile) {
+      this.isFirmwareUploading = true;
+      this.firmwareUpdateProgress = 0;
 
-    if (this.selectedFirmwareFile.name !== this.expectedFileName) {
-      this.toastrService.danger(`Incorrect file, expected: ${this.expectedFileName}`, 'Error');
-      return;
-    }
-
-    this.isFirmwareUploading = true;
-
-    this.systemService.performOTAUpdate(this.selectedFirmwareFile)
-      .pipe(this.loadingService.lockUIUntilComplete())
-      .subscribe({
+      this.systemService.performOTAUpdate(this.selectedFirmwareFile).subscribe({
         next: (event) => {
-          if (event.type === HttpEventType.UploadProgress && event.total) {
-            console.log(event.loaded);
-            console.log(event.total);
-            this.firmwareUpdateProgress = Math.round(100 * event.loaded / event.total);
+          if (event.type === HttpEventType.UploadProgress) {
+            this.firmwareUpdateProgress = Math.round(100 * event.loaded / (event.total || 1));
           } else if (event.type === HttpEventType.Response) {
             this.firmwareUpdateProgress = 100;
-            this.toastrService.success('Firmware updated successfully', 'Success');
+            this.isFirmwareUploading = false;
+            this.toastrService.success('Success!', 'Firmware uploaded successfully.');
           }
         },
-        error: (err) => {
-          this.toastrService.danger(`Upload failed: ${err.message}`, 'Error');
+        error: (err: HttpErrorResponse) => {
           this.isFirmwareUploading = false;
           this.firmwareUpdateProgress = 0;
-        },
-        complete: () => {
-          this.isFirmwareUploading = false;
-          // Optionally reset the progress indicator after a short delay
-          setTimeout(() => this.firmwareUpdateProgress = 0, 500);
+          this.toastrService.danger('Error.', `Could not upload firmware. ${err.message}`);
         }
       });
-
-    this.selectedFirmwareFile = null;
-  }
-
-
-  public onWebsiteFileSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      this.selectedWebsiteFile = input.files[0];
     }
   }
 
-  public uploadWebsiteFile() {
-    if (!this.selectedWebsiteFile) {
-      this.toastrService.warning('No file selected', 'Warning');
-      return;
+  public onWebsiteFileSelected(event: any): void {
+    const file: File = event.target.files[0];
+    if (file) {
+      this.selectedWebsiteFile = file;
     }
+  }
 
-    if (this.selectedWebsiteFile.name !== 'www.bin') {
-      this.toastrService.danger('Incorrect file, expected: www.bin', 'Error');
-      return;
-    }
+  public uploadWebsiteFile(): void {
+    if (this.selectedWebsiteFile) {
+      this.isWebsiteUploading = true;
+      this.websiteUpdateProgress = 0;
 
-    this.isWebsiteUploading = true;
-
-    this.systemService.performWWWOTAUpdate(this.selectedWebsiteFile)
-    .pipe(this.loadingService.lockUIUntilComplete())
-    .subscribe({
-      next: (event) => {
-        if (!event) {
-          return; // Skip processing if the event is undefined.
+      this.systemService.performWWWOTAUpdate(this.selectedWebsiteFile).subscribe({
+        next: (event) => {
+          if (event.type === HttpEventType.UploadProgress) {
+            this.websiteUpdateProgress = Math.round(100 * event.loaded / (event.total || 1));
+          } else if (event.type === HttpEventType.Response) {
+            this.websiteUpdateProgress = 100;
+            this.isWebsiteUploading = false;
+            this.toastrService.success('Success!', 'Website uploaded successfully.');
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          this.isWebsiteUploading = false;
+          this.websiteUpdateProgress = 0;
+          this.toastrService.danger('Error.', `Could not upload website. ${err.message}`);
         }
-        if (event.type === HttpEventType.UploadProgress && event.total) {
-          this.websiteUpdateProgress = Math.round(100 * event.loaded / event.total);
-        } else if (event.type === HttpEventType.Response) {
-          this.websiteUpdateProgress = 100;
-          this.toastrService.success('Website updated successfully', 'Success');
-          setTimeout(() => window.location.reload(), 1000);
-        }
-      },
-      error: (err) => {
-        this.toastrService.danger(`Upload failed: ${err.message}`, 'Error');
-        this.isWebsiteUploading = false;
-        this.websiteUpdateProgress = 0;
-      },
-      complete: () => {
-        this.isWebsiteUploading = false;
-        setTimeout(() => this.websiteUpdateProgress = 0, 500);
-      }
-    });
-
-
-    this.selectedWebsiteFile = null;
+      });
+    }
   }
-
-
-  public restart() {
-    this.systemService.restart().pipe(
-      catchError(error => {
-        this.toastrService.danger(`Failed to restart Device`, 'Error');
-        return of(null);
-      })
-    ).subscribe(res => {
-      if (res !== null) {
-        this.toastrService.success(`Device restarted`, 'Success');
-      }
-    });
-  }
-
-
-
-
-
 }

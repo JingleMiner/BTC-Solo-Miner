@@ -1,4 +1,3 @@
-
 // themes - our custom or/and out of the box themes
 @use './themes.scss' as *;
 
@@ -95,11 +94,29 @@ mat-icon{
   font-family: 'Material Icons' !important;
 }
 
-@media (max-width: 767px) {
+/* Importing Bootstrap SCSS file. */
+@import 'bootstrap/scss/bootstrap';
+
+// 自定义背景色和卡片颜色样式 - 使用正确的CSS选择器
+nb-layout-column {
+  background-color: var(--layout-background-color, #2b3654) !important;
+}
+
+nb-card {
+  background-color: var(--card-background-color, #3d4465) !important;
+  border: 1px solid var(--card-border-color, #4a5177) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  
+  nb-card-header {
+    background-color: var(--card-background-color, #3d4465) !important;
+    border-bottom: 1px solid var(--card-border-color, #4a5177) !important;
+  }
+  
   nb-card-body {
-    padding: 0.5rem;
+    background-color: var(--card-background-color, #3d4465) !important;
   }
 }
 
-/* Importing Bootstrap SCSS file. */
-@import 'bootstrap/scss/bootstrap';
+nb-layout {
+  background-color: var(--layout-background-color, #2b3654) !important;
+}

@@ -12,10 +12,90 @@
 #include "http_utils.h"
 
 #include "ping_task.h"
+#include "esp_wifi.h"
+#include <vector>
+#include <string>
 
 static const char *TAG = "http_system";
 
-#define VR_FREQUENCY_ENABLED
+static constexpr uint16_t AUTO_SCREEN_ROTATE_MIN_SECONDS = 5;
+static constexpr uint16_t AUTO_SCREEN_ROTATE_MAX_SECONDS = 600;
+
+// Function to extract clean version from git describe format
+const char* get_clean_version() {
+    const char* full_version = esp_app_get_description()->version;
+    
+    // If version starts with "refs/tags/", skip that part
+    if (strncmp(full_version, "refs/tags/", 10) == 0) {
+        full_version += 10;
+    }
+    
+    // Find the first '-' character to extract just the tag part
+    const char* dash_pos = strchr(full_version, '-');
+    if (dash_pos != NULL) {
+        static char clean_version[32];
+        size_t len = dash_pos - full_version;
+        if (len >= sizeof(clean_version)) {
+            len = sizeof(clean_version) - 1;
+        }
+        strncpy(clean_version, full_version, len);
+        clean_version[len] = '\0';
+        return clean_version;
+    }
+    
+    // If no '-' found, return as is
+    return full_version;
+}
+
+esp_err_t GET_wifi_scan(httpd_req_t *req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+
+    // Set CORS headers
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "application/json");
+
+    wifi_scan_config_t scan_config = {};
+    scan_config.ssid = NULL;
+    scan_config.bssid = NULL;
+    scan_config.channel = 0;
+    scan_config.show_hidden = false;
+
+    esp_err_t err = esp_wifi_scan_start(&scan_config, true /* block until done */);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "WiFi scan start failed: %s", esp_err_to_name(err));
+        return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Scan failed");
+    }
+
+    uint16_t apNum = 0;
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&apNum));
+    std::vector<wifi_ap_record_t> records(apNum);
+    if (apNum > 0) {
+        if (esp_wifi_scan_get_ap_records(&apNum, records.data()) != ESP_OK) {
+            return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Scan read failed");
+        }
+    }
+
+    PSRAMAllocator allocator;
+    JsonDocument doc(&allocator);
+    JsonArray arr = doc.to<JsonArray>();
+    for (uint16_t i = 0; i < apNum; ++i) {
+        JsonObject obj = arr.add<JsonObject>();
+        obj["ssid"] = reinterpret_cast<const char*>(records[i].ssid);
+        obj["rssi"] = records[i].rssi;
+        obj["authmode"] = static_cast<int>(records[i].authmode);
+    }
+
+    esp_err_t ret = sendJsonResponse(req, doc);
+    doc.clear();
+    return ret;
+}
 
 /* Simple handler for getting system handler */
 esp_err_t GET_system_info(httpd_req_t *req)
@@ -59,6 +139,7 @@ esp_err_t GET_system_info(httpd_req_t *req)
 
     // Get configuration strings from NVS
     char *ssid               = Config::getWifiSSID();
+    char *wifiPass           = Config::getWifiPass();
     char *hostname           = Config::getHostname();
     char *stratumURL         = Config::getStratumURL();
     char *stratumUser        = Config::getStratumUser();
@@ -71,7 +152,6 @@ esp_err_t GET_system_info(httpd_req_t *req)
     doc["deviceModel"]        = board->getDeviceModel();
     doc["hostip"]             = SYSTEM_MODULE.getIPAddress();
     doc["macAddr"]            = SYSTEM_MODULE.getMacAddress();
-    doc["wifiRSSI"]           = SYSTEM_MODULE.get_wifi_rssi();
 
     // dashboard
     doc["power"]              = POWER_MANAGEMENT_MODULE.getPower();
@@ -84,8 +164,7 @@ esp_err_t GET_system_info(httpd_req_t *req)
     doc["temp"]               = POWER_MANAGEMENT_MODULE.getChipTempMax();
     doc["vrTemp"]             = POWER_MANAGEMENT_MODULE.getVRTemp();
     doc["hashRateTimestamp"]  = history->getCurrentTimestamp();
-    doc["hashRate"]           = SYSTEM_MODULE.getCurrentHashrate();
-    doc["hashRate_1m"]        = history->getCurrentHashrate1m();
+    doc["hashRate"]           = history->getCurrentHashrate10m();
     doc["hashRate_10m"]       = history->getCurrentHashrate10m();
     doc["hashRate_1h"]        = history->getCurrentHashrate1h();
     doc["hashRate_1d"]        = history->getCurrentHashrate1d();
@@ -96,15 +175,12 @@ esp_err_t GET_system_info(httpd_req_t *req)
     doc["coreVoltageActual"]  = (int) (board->getVout() * 1000.0f);
     doc["sharesAccepted"]     = SYSTEM_MODULE.getSharesAccepted();
     doc["sharesRejected"]     = SYSTEM_MODULE.getSharesRejected();
-    doc["duplicateHWNonces"]  = SYSTEM_MODULE.getDuplicateHWNonces();
     doc["isUsingFallbackStratum"] = STRATUM_MANAGER.isUsingFallback();
     doc["isStratumConnected"] = STRATUM_MANAGER.isAnyConnected();
     doc["fanspeed"]           = POWER_MANAGEMENT_MODULE.getFanPerc();
     doc["fanrpm"]             = POWER_MANAGEMENT_MODULE.getFanRPM();
     doc["lastpingrtt"]        = get_last_ping_rtt();
     doc["poolDifficulty"]     = SYSTEM_MODULE.getPoolDifficulty();
-    doc["foundBlocks"]        = SYSTEM_MODULE.getFoundBlocks();
-    doc["totalFoundBlocks"]   = SYSTEM_MODULE.getTotalFoundBlocks();
 
     // If history was requested, add the history data as a nested object
     if (history_requested) {
@@ -124,14 +200,13 @@ esp_err_t GET_system_info(httpd_req_t *req)
 
     doc["hostname"]           = hostname;
     doc["ssid"]               = ssid;
+    doc["wifiPass"]           = wifiPass;
     doc["stratumURL"]         = stratumURL;
     doc["stratumPort"]        = Config::getStratumPortNumber();
     doc["stratumUser"]        = stratumUser;
-    doc["stratumEnonceSubscribe"] = Config::isStratumEnonceSubscribe();
     doc["fallbackStratumURL"] = fallbackStratumURL;
     doc["fallbackStratumPort"]= Config::getStratumFallbackPortNumber();
     doc["fallbackStratumUser"] = fallbackStratumUser;
-    doc["fallbackStratumEnonceSubscribe"] = Config::isStratumFallbackEnonceSubscribe();
     doc["voltage"]            = POWER_MANAGEMENT_MODULE.getVoltage();
     doc["frequency"]          = board->getAsicFrequency();
     doc["defaultFrequency"]   = board->getDefaultAsicFrequency();
@@ -141,14 +216,11 @@ esp_err_t GET_system_info(httpd_req_t *req)
     doc["flipscreen"]         = board->isFlipScreenEnabled() ? 1 : 0;
     doc["invertscreen"]       = Config::isInvertScreenEnabled() ? 1 : 0; // unused?
     doc["autoscreenoff"]      = Config::isAutoScreenOffEnabled() ? 1 : 0;
+    doc["autoScreenCycle"]    = Config::isAutoScreenRotateEnabled() ? 1 : 0;
+    doc["autoScreenCycleInterval"] = Config::getAutoScreenRotateInterval();
     doc["invertfanpolarity"]  = board->isInvertFanPolarityEnabled() ? 1 : 0;
     doc["autofanpolarity"]  = board->isAutoFanPolarityEnabled() ? 1 : 0;
     doc["autofanspeed"]       = Config::getTempControlMode();
-    doc["stratum_keep"]       = Config::isStratumKeepaliveEnabled() ? 1 : 0;
-#ifdef VR_FREQUENCY_ENABLED
-    doc["vrFrequency"]        = board->getVrFrequency();
-    doc["defaultVrFrequency"] = board->getDefaultVrFrequency();
-#endif
 
     // system screen
     doc["ASICModel"]          = board->getAsicModel();
@@ -157,7 +229,7 @@ esp_err_t GET_system_info(httpd_req_t *req)
     doc["wifiStatus"]         = SYSTEM_MODULE.getWifiStatus();
     doc["freeHeap"]           = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
     doc["freeHeapInt"]        = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-    doc["version"]            = esp_app_get_description()->version;
+    doc["version"]            = get_clean_version();
     doc["runningPartition"]   = esp_ota_get_running_partition()->label;
 
     //ESP_LOGI(TAG, "allocs: %d, deallocs: %d, reallocs: %d", allocs, deallocs, reallocs);
@@ -171,6 +243,7 @@ esp_err_t GET_system_info(httpd_req_t *req)
 
     // Free temporary strings
     free(ssid);
+    free(wifiPass);
     free(hostname);
     free(stratumURL);
     free(stratumUser);
@@ -225,6 +298,8 @@ esp_err_t PATCH_update_settings(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    bool autoScreenCycleEnabled = Config::isAutoScreenRotateEnabled();
+
     // Update settings if each key exists in the JSON object.
     if (doc["stratumURL"].is<const char*>()) {
         Config::setStratumURL(doc["stratumURL"].as<const char*>());
@@ -238,9 +313,6 @@ esp_err_t PATCH_update_settings(httpd_req_t *req)
     if (doc["stratumPort"].is<uint16_t>()) {
         Config::setStratumPortNumber(doc["stratumPort"].as<uint16_t>());
     }
-    if (doc["stratumEnonceSubscribe"].is<bool>()) {
-        Config::setStratumEnonceSubscribe(doc["stratumEnonceSubscribe"].as<bool>());
-    }
     if (doc["fallbackStratumURL"].is<const char*>()) {
         Config::setStratumFallbackURL(doc["fallbackStratumURL"].as<const char*>());
     }
@@ -253,15 +325,33 @@ esp_err_t PATCH_update_settings(httpd_req_t *req)
     if (doc["fallbackStratumPort"].is<uint16_t>()) {
         Config::setStratumFallbackPortNumber(doc["fallbackStratumPort"].as<uint16_t>());
     }
-    if (doc["fallbackStratumEnonceSubscribe"].is<bool>()) {
-        Config::setStratumFallbackEnonceSubscribe(doc["fallbackStratumEnonceSubscribe"].as<bool>());
-    }
     if (doc["ssid"].is<const char*>()) {
         Config::setWifiSSID(doc["ssid"].as<const char*>());
     }
     if (doc["wifiPass"].is<const char*>()) {
-        Config::setWifiPass(doc["wifiPass"].as<const char*>());
+        const char* wifiPass = doc["wifiPass"].as<const char*>();
+        // Only update if the password is not empty
+        if (strlen(wifiPass) > 0) {
+            Config::setWifiPass(wifiPass);
+        }
     }
+    if (doc["autoScreenCycle"].is<bool>()) {
+        autoScreenCycleEnabled = doc["autoScreenCycle"].as<bool>();
+        Config::setAutoScreenRotate(autoScreenCycleEnabled);
+    }
+    if (!doc["autoScreenCycleInterval"].isNull()) {
+        uint32_t interval = doc["autoScreenCycleInterval"].as<uint32_t>();
+        if (interval == 0) {
+            interval = CONFIG_AUTO_SCREEN_ROTATE_INTERVAL;
+        }
+        if (interval < AUTO_SCREEN_ROTATE_MIN_SECONDS) {
+            interval = AUTO_SCREEN_ROTATE_MIN_SECONDS;
+        } else if (interval > AUTO_SCREEN_ROTATE_MAX_SECONDS) {
+            interval = AUTO_SCREEN_ROTATE_MAX_SECONDS;
+        }
+        Config::setAutoScreenRotateInterval(static_cast<uint16_t>(interval));
+    }
+
     if (doc["hostname"].is<const char*>()) {
         Config::setHostname(doc["hostname"].as<const char*>());
     }
@@ -308,12 +398,11 @@ esp_err_t PATCH_update_settings(httpd_req_t *req)
         Config::setFanSpeed(doc["fanspeed"].as<uint16_t>());
     }
     if (doc["autoscreenoff"].is<bool>()) {
-        Config::setAutoScreenOff(doc["autoscreenoff"].as<bool>());
-    }
-    if (doc["stratum_keep"].is<bool>() || doc["stratum_keep"].is<int>()) {
-        bool value = doc["stratum_keep"].as<int>() != 0;
-        Config::setStratumKeepaliveEnabled(value);
-        ESP_LOGI("system", "stratum_keep updated via WebUI: %s", value ? "ENABLED" : "DISABLED");
+        if (autoScreenCycleEnabled) {
+            Config::setAutoScreenOff(false);
+        } else {
+            Config::setAutoScreenOff(doc["autoscreenoff"].as<bool>());
+        }
     }
     if (doc["pidTargetTemp"].is<uint16_t>()) {
         Config::setPidTargetTemp(doc["pidTargetTemp"].as<uint16_t>());
@@ -327,11 +416,11 @@ esp_err_t PATCH_update_settings(httpd_req_t *req)
     if (doc["pidD"].is<float>()) {
         Config::setPidD((uint16_t) (doc["pidD"].as<float>() * 100.0f));
     }
-#ifdef VR_FREQUENCY_ENABLED
-    if (doc["vrFrequency"].is<uint32_t>()) {
-        Config::setVrFrequency(doc["vrFrequency"].as<uint32_t>());
+
+    if (Config::isAutoScreenRotateEnabled()) {
+        Config::setAutoScreenOff(false);
     }
-#endif
+
     doc.clear();
 
     // Signal the end of the response
@@ -342,56 +431,4 @@ esp_err_t PATCH_update_settings(httpd_req_t *req)
     board->loadSettings();
 
     return ESP_OK;
-}
-
-esp_err_t GET_system_asic(httpd_req_t *req)
-{
-    if (is_network_allowed(req) != ESP_OK) {
-        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
-    }
-
-    httpd_resp_set_type(req, "application/json");
-
-    // CORS
-    if (set_cors_headers(req) != ESP_OK) {
-        httpd_resp_send_500(req);
-        return ESP_FAIL;
-    }
-
-    Board* board = SYSTEM_MODULE.getBoard();
-
-    PSRAMAllocator allocator;
-    JsonDocument doc(&allocator);
-
-    // Basisfelder
-    doc["ASICModel"]        = board->getAsicModel();
-    doc["deviceModel"]      = board->getDeviceModel();
-    doc["asicCount"]        = board->getAsicCount();
-    doc["defaultFrequency"] = board->getDefaultAsicFrequency();
-    doc["defaultVoltage"]   = board->getDefaultAsicVoltageMillis();
-    doc["absMaxFrequency"]  = board->getAbsMaxAsicFrequency();
-    doc["absMaxVoltage"]    = board->getAbsMaxAsicVoltageMillis();
-
-    doc["swarmColor"] = board->getSwarmColorName();
-
-    // frequencyOptions
-    {
-        JsonArray arr = doc["frequencyOptions"].to<JsonArray>();
-        const auto& freqs = board->getFrequencyOptions();
-        for (uint32_t f : freqs) { arr.add(f); }
-    }
-
-    // voltageOptions
-    {
-        JsonArray arr = doc["voltageOptions"].to<JsonArray>();
-        const auto& volts = board->getVoltageOptions();
-        for (uint32_t v : volts) { arr.add(v); }
-    }
-
-    // Verbindung schließen, damit nichts „hängt“
-    httpd_resp_set_hdr(req, "Connection", "close");
-
-    esp_err_t ret = sendJsonResponse(req, doc);
-    doc.clear();
-    return ret;
 }

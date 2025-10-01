@@ -421,7 +421,7 @@ void UI::bTCScreenInit(void)
     lv_obj_set_x(ui_lblBTCPrice, 30);
     lv_obj_set_y(ui_lblBTCPrice, 47);
     lv_obj_set_align(ui_lblBTCPrice, LV_ALIGN_LEFT_MID);
-    lv_label_set_text(ui_lblBTCPrice, "0$");
+    lv_label_set_text(ui_lblBTCPrice, "$0");
     lv_obj_set_style_text_color(ui_lblBTCPrice, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_lblBTCPrice, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_lblBTCPrice, &ui_font_OpenSansBold45, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -482,7 +482,7 @@ void UI::globalStatsScreenInit(void)
     lv_obj_set_y(ui_lblHalvingPercent, 36);
     lv_obj_set_align(ui_lblHalvingPercent, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblHalvingPercent, "95%");
-    lv_obj_set_style_text_color(ui_lblHalvingPercent, lv_color_hex(0xC6C6C5), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui_lblHalvingPercent, lv_color_hex(0xFFD200), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_lblHalvingPercent, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_lblHalvingPercent, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_lblHalvingPercent, &ui_font_OpenSansBold14, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -506,7 +506,7 @@ void UI::globalStatsScreenInit(void)
     lv_obj_set_y(ui_lblBlocksToHalving, 68);
     lv_obj_set_align(ui_lblBlocksToHalving, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblBlocksToHalving, "210.000");
-    lv_obj_set_style_text_color(ui_lblBlocksToHalving, lv_color_hex(0xC6C6C5), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui_lblBlocksToHalving, lv_color_hex(0xFFD200), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_lblBlocksToHalving, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_lblBlocksToHalving, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_lblBlocksToHalving, &ui_font_OpenSansBold24, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -518,7 +518,7 @@ void UI::globalStatsScreenInit(void)
     lv_obj_set_y(ui_lblDifficulty, -11);
     lv_obj_set_align(ui_lblDifficulty, LV_ALIGN_RIGHT_MID);
     lv_label_set_text(ui_lblDifficulty, "81T");
-    lv_obj_set_style_text_color(ui_lblDifficulty, lv_color_hex(0xC6C6C5), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui_lblDifficulty, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_lblDifficulty, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_lblDifficulty, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_lblDifficulty, &ui_font_OpenSansBold24, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -672,7 +672,7 @@ void UI::init(Board* board)
 
     lv_disp_t *dispp = lv_disp_get_default();
     lv_theme_t *m_theme =
-        lv_theme_default_init(dispp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), false, LV_FONT_DEFAULT);
+        lv_theme_default_init(dispp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), true, LV_FONT_DEFAULT);
     lv_disp_set_theme(dispp, m_theme);
     if (ui_Splash1 == NULL)
         splash1ScreenInit();

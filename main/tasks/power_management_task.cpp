@@ -20,7 +20,7 @@
 static const char *TAG = "power_management";
 
 PowerManagementTask::PowerManagementTask() {
-    m_mutex = xSemaphoreCreateRecursiveMutex();
+    m_mutex = PTHREAD_MUTEX_INITIALIZER;
 }
 
 void PowerManagementTask::taskWrapper(void *pvParameters) {
@@ -35,20 +35,12 @@ void PowerManagementTask::restart() {
 
     ESP_LOGW(TAG, "HW lock acquired!");
     // shutdown asics and LDOs before reset
-    shutdown();
+    Board* board = SYSTEM_MODULE.getBoard();
+    board->shutdown();
 
     ESP_LOGW(TAG, "restart");
     esp_restart();
-
-    // unreachable
     unlock();
-}
-
-void PowerManagementTask::shutdown() {
-    Board* board = SYSTEM_MODULE.getBoard();
-    if (board) {
-        board->shutdown();
-    }
 }
 
 void PowerManagementTask::requestChipTemps() {
@@ -85,27 +77,16 @@ void PowerManagementTask::checkAsicFrequencyChanged() {
     static uint16_t last_asic_frequency = 0;
 
     Board* board = SYSTEM_MODULE.getBoard();
+    Asic* asics = board->getAsics();
 
     uint16_t asic_frequency = board->getAsicFrequency();
 
     if (asic_frequency != last_asic_frequency) {
         ESP_LOGI(TAG, "setting new asic frequency to %uMHz", asic_frequency);
-        if (!board->setAsicFrequency((float) asic_frequency)) {
+        if (asics && !asics->setAsicFrequency((float) asic_frequency)) {
             ESP_LOGE(TAG, "pll setting not found for %uMHz", asic_frequency);
         }
         last_asic_frequency = asic_frequency;
-    }
-}
-
-void PowerManagementTask::checkVrFrequencyChanged() {
-    static uint32_t lastVrFrequency = 0;
-    Board *board = SYSTEM_MODULE.getBoard();
-
-    uint32_t vrFrequency = board->getVrFrequency();
-    if (vrFrequency != lastVrFrequency) {
-        board->setVrFrequency(vrFrequency);
-        ESP_LOGI(TAG, "setting version rolling frequency to %luHz", vrFrequency);
-        lastVrFrequency = vrFrequency;
     }
 }
 
@@ -173,10 +154,12 @@ void PowerManagementTask::task()
     m_pid->SetControllerDirection(REVERSE);
     m_pid->Initialize();
 
-    vTaskDelay(pdMS_TO_TICKS(3000));
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
 
     while (1) {
         lock();
+        // the asics are initialized after this task starts
+        Asic* asics = board->getAsics();
 
         uint16_t asic_overheat_temp = Config::getOverheatTemp();
         uint16_t temp_control_mode = Config::getTempControlMode();
@@ -192,9 +175,6 @@ void PowerManagementTask::task()
 
         // check if asic frequency changed
         checkAsicFrequencyChanged();
-
-        // check if version rolling frequency changed
-        checkVrFrequencyChanged();
 
         // check if pid settings changed
         checkPidSettingsChanged();
@@ -273,25 +253,29 @@ void PowerManagementTask::task()
         m_pid->Compute();
 
         switch (temp_control_mode) {
-            case 0:
-                // manual
-                m_fanPerc = Config::getFanSpeed();
-                board->setFanSpeed((float) m_fanPerc / 100.0f);
+            case 1:
+                // classic automatic fan control
+                m_fanPerc = board->automaticFanSpeed(m_chipTempMax);
+                board->setFanSpeed(m_fanPerc / 100.0f);
                 break;
             case 2:
                 // pid
-                m_fanPerc = (uint16_t) roundf(pid_output);
-                board->setFanSpeed((float) m_fanPerc / 100.0f);
+                m_fanPerc = roundf(pid_output);
+                board->setFanSpeed(m_fanPerc / 100.0f);
                 //ESP_LOGI(TAG, "PID: Temp: %.1f°C, SetPoint: %.1f°C, Output: %.1f%%", pid_input, pid_target, pid_output);
                 //ESP_LOGI(TAG, "p:%.2f i:%.2f d:%.2f", m_pid->GetKp(), m_pid->GetKi(), m_pid->GetKd());
                 break;
             default:
-                ESP_LOGE(TAG, "invalid temp control mode: %d. Defaulting to manual mode 100%%.", temp_control_mode);
-                m_fanPerc = 100;
-                board->setFanSpeed((float) m_fanPerc / 100.0f);
+                ESP_LOGE(TAG, "invalid temp control mode: %d. Defaulting to manual.", temp_control_mode);
+                [[fallthrough]];
+            case 0:
+                // manual
+                m_fanPerc = (float) Config::getFanSpeed();
+                board->setFanSpeed(m_fanPerc / 100.0f);
+                break;
         }
         unlock();
 
-        vTaskDelay(pdMS_TO_TICKS(POLL_RATE));
+        vTaskDelay(POLL_RATE / portTICK_PERIOD_MS);
     }
 }

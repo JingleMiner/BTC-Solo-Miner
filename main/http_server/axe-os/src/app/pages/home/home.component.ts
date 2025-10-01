@@ -7,7 +7,6 @@ import { Chart } from 'chart.js';  // Import Chart.js
 import { ElementRef, ViewChild } from "@angular/core";
 import { TimeScale} from "chart.js/auto";
 import { NbThemeService } from '@nebular/theme';
-import { NbTrigger } from '@nebular/theme';
 
 @Component({
   selector: 'app-home',
@@ -15,9 +14,8 @@ import { NbTrigger } from '@nebular/theme';
   styleUrls: ['./home.component.scss']
 })
 export class HomeComponent implements AfterViewChecked, OnInit, OnDestroy {
-  @ViewChild("myChart") ctx: ElementRef<HTMLCanvasElement>;
 
-  protected readonly NbTrigger = NbTrigger;
+  @ViewChild("myChart") ctx: ElementRef<HTMLCanvasElement>;
 
   private chart: Chart;
   private themeSubscription: any;
@@ -236,8 +234,6 @@ export class HomeComponent implements AfterViewChecked, OnInit, OnDestroy {
       return `https://pool.satoshiradio.nl/user/${address}`;
     } else if (stratumURL.includes('solohash.co.uk')) {
       return `https://solohash.co.uk/user/${address}`;
-    } else if (stratumURL.includes('parasite.wtf')) {
-      return `https://parasite.space/user/${address}`;
     }
     return stratumURL.startsWith('http') ? stratumURL : `http://${stratumURL}`;
   }

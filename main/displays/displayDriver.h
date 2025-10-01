@@ -77,6 +77,7 @@ class DisplayDriver {
     int m_nextScreen;           // The next screen to display
     bool m_isActiveOverlay;     // flag if we have an overlay. LED light is forced to be on
     char m_portalWifiName[30];  // WiFi name displayed on the portal screen
+    int64_t m_lastAutoScreenCycleTime; // Timestamp of the last automatic screen switch
 
     lv_obj_t *m_countdownLabel = nullptr; // Label object for the countdown timer
     bool m_countdownActive = false;       // Flag for countdown timer activity
@@ -133,7 +134,7 @@ class DisplayDriver {
     void updateTime(System *module);                                // Update the time display
     void updateGlobalState();                                       // Update the global state on the display
     void updateCurrentSettings();                                   // Update the current settings screen
-    void updateIpAddress(const char *ipAddressStr);                 // Update the displayed IP address
+    void updateIpAddress(char *ipAddressStr);                       // Update the displayed IP address
     void lvglAnimations(bool enable);                               // Enable or disable LVGL animations
     void refreshScreen();                                           // Refresh the display
     void logMessage(const char *message);                           // Log a message to the display

@@ -34,14 +34,13 @@ System::System() {
 
 void System::initSystem() {
     m_currentHashrate10m = 0.0;
-    m_currentHashrate1m = 0.0;
     m_screenPage = 0;
     m_sharesAccepted = 0;
     m_sharesRejected = 0;
-    m_duplicateHWNonces = 0;
     m_bestNonceDiff = Config::getBestDiff();
     m_bestSessionNonceDiff = 0;
     m_startTime = esp_timer_get_time();
+    m_foundBlock = false;
     m_startupDone = false;
     m_poolErrors = 0;
     m_poolDifficulty = 8192;
@@ -51,8 +50,7 @@ void System::initSystem() {
         Config::getStratumURL(),
         Config::getStratumPortNumber(),
         Config::getStratumUser(),
-        Config::getStratumPass(),
-        Config::isStratumEnonceSubscribe(),
+        Config::getStratumPass()
     };
 
     m_stratumConfig[1] = {
@@ -60,12 +58,9 @@ void System::initSystem() {
         Config::getStratumFallbackURL(),
         Config::getStratumFallbackPortNumber(),
         Config::getStratumFallbackUser(),
-        Config::getStratumFallbackPass(),
-        Config::isStratumFallbackEnonceSubscribe(),
+        Config::getStratumFallbackPass()
     };
 
-    m_foundBlocks = 0;
-    m_totalFoundBlocks = Config::getTotalFoundBlocks();
 
     // Initialize overheat flag
     m_overheated = false;
@@ -81,11 +76,14 @@ void System::initSystem() {
     suffixString(m_bestNonceDiff, m_bestDiffString, DIFF_STRING_SIZE, 0);
     suffixString(m_bestSessionNonceDiff, m_bestSessionDiffString, DIFF_STRING_SIZE, 0);
 
+    // Clear the ssid string
+    memset(m_ssid, 0, sizeof(m_ssid));
+
+    // Clear the wifi_status string
+    memset(m_wifiStatus, 0, 20);
+
     // initialize AP state
     m_apState = false;
-
-    // initialize connected flag
-    m_wifiConnected = false;
 
     // Initialize the display
     m_display = new DisplayDriver();
@@ -110,32 +108,19 @@ void System::updateEsp32Info() {}
 void System::initConnection() {}
 
 void System::updateConnection() {
-    m_display->updateWifiStatus(m_wifiStatus.c_str());
+    m_display->updateWifiStatus(m_wifiStatus);
 }
 
 void System::updateSystemPerformance() {}
 
 void System::showApInformation(const char* error) {
-    m_display->portalScreen(m_apSsid.c_str());
+    char apSsid[13];
+    generate_ssid(apSsid);
+    m_display->portalScreen(apSsid);
 }
 
-const std::string System::getMacAddress() {
+const char* System::getMacAddress() {
     return connect_get_mac_addr();
-}
-
-// Function to fetch and return the RSSI (dBm) value
-int System::get_wifi_rssi()
-{
-    wifi_ap_record_t ap_info;
-
-    // Query the connected Access Point's information
-    if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
-        ESP_LOGI("WIFI_RSSI", "Current RSSI: %d dBm", ap_info.rssi);
-        return ap_info.rssi;  // Return the actual RSSI value
-    } else {
-        ESP_LOGE("WIFI_RSSI", "Failed to fetch RSSI");
-        return -90;  // Return -90 to indicate an error
-    }
 }
 
 double System::calculateNetworkDifficulty(uint32_t nBits) {
@@ -148,29 +133,10 @@ double System::calculateNetworkDifficulty(uint32_t nBits) {
     return difficulty;
 }
 
-float System::getCurrentHashrate() {
-    if (m_board->hasHashrateCounter()) {
-        return HASHRATE_MONITOR.getSmoothedTotalChipHashrate();
-    }
-    return getCurrentHashrate10m();
-}
-
 void System::checkForBestDiff(double diff, uint32_t nbits) {
     if ((uint64_t)diff > m_bestSessionNonceDiff) {
         m_bestSessionNonceDiff = (uint64_t)diff;
         suffixString((uint64_t)diff, m_bestSessionDiffString, DIFF_STRING_SIZE, 0);
-    }
-
-    double networkDiff = calculateNetworkDifficulty(nbits);
-    if (diff > networkDiff) {
-        m_foundBlocks++;
-        ESP_LOGI(TAG, "FOUND BLOCK!!! %f > %f", diff, networkDiff);
-
-        // increase total found blocks counter
-        m_totalFoundBlocks++;
-        Config::setTotalFoundBlocks(m_totalFoundBlocks);
-
-        discordAlerter.sendBlockFoundAlert(diff, networkDiff);
     }
 
     if ((uint64_t)diff <= m_bestNonceDiff) {
@@ -183,6 +149,11 @@ void System::checkForBestDiff(double diff, uint32_t nbits) {
     // Make the best_nonce_diff into a string
     suffixString((uint64_t)diff, m_bestDiffString, DIFF_STRING_SIZE, 0);
 
+    double networkDiff = calculateNetworkDifficulty(nbits);
+    if (diff > networkDiff) {
+        m_foundBlock = true;
+        ESP_LOGI(TAG, "FOUND BLOCK!!! %f > %f", diff, networkDiff);
+    }
     ESP_LOGI(TAG, "Network diff: %f", networkDiff);
 }
 
@@ -239,7 +210,7 @@ void System::suffixString(uint64_t val, char* buf, size_t bufSize, int sigDigits
     }
 }
 
-esp_reset_reason_t System::showLastResetReason() {
+void System::showLastResetReason() {
     esp_reset_reason_t reason = esp_reset_reason();
     switch (reason) {
         case ESP_RST_UNKNOWN: m_lastResetReason = "Unknown"; break;
@@ -255,8 +226,7 @@ esp_reset_reason_t System::showLastResetReason() {
         case ESP_RST_SDIO: m_lastResetReason = "SDIO reset"; break;
         default: m_lastResetReason = "Not specified"; break;
     }
-    ESP_LOGI(TAG, "Reset reason: %s", m_lastResetReason.c_str());
-    return reason;
+    ESP_LOGI(TAG, "Reset reason: %s", m_lastResetReason);
 }
 
 void System::showError(const char *error_message, uint32_t error_code) {
@@ -290,28 +260,34 @@ void System::task() {
 
     ESP_LOGI(TAG, "SYSTEM_task started");
 
-    while (!connect_is_sta_connected()) {
-        if (connect_is_ap_running()) {
+    wifi_mode_t wifiMode;
+    esp_err_t result;
+    while (!m_startupDone) {
+        result = esp_wifi_get_mode(&wifiMode);
+        if (result == ESP_OK && (wifiMode == WIFI_MODE_APSTA || wifiMode == WIFI_MODE_AP) &&
+            strcmp(m_wifiStatus, "Failed to connect") == 0) {
             showApInformation(nullptr);
-            vTaskDelay(pdMS_TO_TICKS(5000));
+            vTaskDelay(5000 / portTICK_PERIOD_MS);
         } else {
             updateConnection();
         }
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 
     m_display->miningScreen();
 
     uint8_t countCycle = 10;
+    bool validIp = false;
 
     // show initial 0.0.0.0
-    m_display->updateIpAddress(m_ipAddress.c_str());
-    int lastFoundBlocks = 0;
-
+    m_display->updateIpAddress(m_ipAddress);
+    bool lastFoundBlock = false;
     while (1) {
         // update IP on the screen if it is available
-        if (m_ipAddress != "") {
-            m_display->updateIpAddress(m_ipAddress.c_str());
+        if (!validIp && connect_get_ip_addr(m_ipAddress, sizeof(m_ipAddress))) {
+            ESP_LOGI(TAG, "ip address: %s", m_ipAddress);
+            m_display->updateIpAddress(m_ipAddress);
+            validIp = true;
         }
 
         if (m_overheated) {
@@ -323,16 +299,16 @@ void System::task() {
         }
 
         // trigger the overlay only once when block is found
-        if (m_foundBlocks != lastFoundBlocks && m_foundBlocks) {
+        if (m_foundBlock != lastFoundBlock && m_foundBlock) {
             m_display->showFoundBlockOverlay();
         }
-        lastFoundBlocks = m_foundBlocks;
+        lastFoundBlock = m_foundBlock;
 
         m_display->updateGlobalState();
         m_display->updateCurrentSettings();
         m_display->refreshScreen();
 
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 }
 
@@ -346,10 +322,6 @@ void System::notifyRejectedShare() {
     updateShares();
 }
 
-void System::countDuplicateHWNonces() {
-    ++m_duplicateHWNonces;
-}
-
 void System::notifyMiningStarted() {}
 
 void System::notifyNewNtime(uint32_t ntime) {}
@@ -361,7 +333,5 @@ void System::notifyFoundNonce(double poolDiff, int asicNr) {
     m_history->pushShare(poolDiff, timestamp, asicNr);
 
     m_currentHashrate10m = m_history->getCurrentHashrate10m();
-    m_currentHashrate1m = m_history->getCurrentHashrate1m();
     updateHashrate();
 }
-

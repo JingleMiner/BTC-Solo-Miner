@@ -46,12 +46,6 @@
         flex: 1;
     }
 
-    .form-control-wrapper-no-label {
-        flex: 1;
-        margin-left: 115px;
-        margin-top: -10px;
-    }
-
     .password-container {
         display: flex;
         align-items: center;
@@ -73,7 +67,6 @@
 
     input {
         min-width: 100%;
-        width: 100%;
     }
 
     nb-card-body {
@@ -82,6 +75,18 @@
 
     nb-select {
         min-width: 100%;
+    }
+
+    .auto-screen-cycle-row {
+        .form-control-wrapper {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .auto-screen-interval {
+            margin-left: 12px;
+        }
     }
 
     .input-with-icon {
@@ -106,7 +111,6 @@
         background: none;
         cursor: pointer;
         padding: 0;
-        width: fit-content;
     }
 
     nb-slider {
@@ -120,7 +124,7 @@
     }
 
     .progress-foreground {
-        background-color: nb-theme(color-primary-default);
+        background-color: #FFD200 !important;
         height: 5px;
         position: absolute;
         left: 0;
@@ -169,6 +173,36 @@
         transition: background-color 0.3s ease-in-out, border 0.3s ease-in-out !important; // Smooth transition
     }
 
-    .btn-support { user-select: none; }
-
+	/* Override Nebular tab active underline to #FFD200 for this component */
+	nb-tabset {
+		::ng-deep .tabset .tab.active a,
+		::ng-deep .tabset .tab.active .tab-link {
+			border-bottom-color: #ffd200 !important;
+		}
+		::ng-deep .tabset .tab.active a::after,
+		::ng-deep .tabset .tab.active .tab-link::after {
+			background-color: #ffd200 !important;
+			border-color: #ffd200 !important;
+		}
+	}
+    @media only screen and (max-width:900px) {
+        .form-row, .form-row-separator {
+          display: block !important;
+        }
+        input {
+          padding: 5px 10px !important;
+        }
+        .auto-screen-cycle-row .form-control-wrapper {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .auto-screen-cycle-row .auto-screen-interval {
+          margin-left: 0;
+          margin-top: 8px;
+          width: 100%;
+        }
+        .auto-screen-cycle-row .auto-screen-interval input {
+          width: 100%;
+        }
+      }
 }

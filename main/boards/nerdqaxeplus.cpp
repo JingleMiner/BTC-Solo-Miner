@@ -19,7 +19,7 @@
 
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-static const char* TAG="nerdqaxe+";
+static const char* TAG="JingleMiner";
 
 #define VR_TEMP1075_ADDR   0x1
 
@@ -30,12 +30,8 @@ NerdQaxePlus::NerdQaxePlus() : Board() {
     m_asicModel = "BM1368";
     m_asicCount = 4;
     m_asicJobIntervalMs = 1200;
-    m_asicFrequencies = {400, 425, 450, 475, 490, 500, 525, 550, 575};
-    m_asicVoltages = {1100, 1150, 1200, 1250, 1300, 1350};
     m_defaultAsicFrequency = m_asicFrequency = 490;
     m_defaultAsicVoltageMillis = m_asicVoltageMillis = 1250; // default voltage
-    m_absMaxAsicFrequency = 800;
-    m_absMaxAsicVoltageMillis = 1400;
     m_initVoltageMillis = 1250;
     m_fanInvertPolarity = false;
     m_fanPerc = 100;
@@ -43,6 +39,11 @@ NerdQaxePlus::NerdQaxePlus() : Board() {
     m_numPhases = 2;
     m_imax = m_numPhases * 30;
     m_ifault = (float) (m_imax - 5);
+
+    // afc settings
+    m_afcMinTemp = 45.0f;
+    m_afcMinFanSpeed = 55.0f;
+    m_afcMaxTemp = 65.0f;
 
     m_maxPin = 70.0;
     m_minPin = 30.0;
@@ -60,12 +61,8 @@ NerdQaxePlus::NerdQaxePlus() : Board() {
 #ifdef NERDQAXEPLUS
     m_theme = new ThemeNerdqaxeplus();
 #endif
-    m_swarmColorName = "#e700d8"; // pink
 
     m_asics = new BM1368();
-    m_hasHashCounter = true;
-    m_vrFrequency = m_defaultVrFrequency = m_asics->getDefaultVrFrequency();
-
     m_tps = new TPS53647();
 }
 
@@ -108,11 +105,11 @@ bool NerdQaxePlus::initBoard()
 void NerdQaxePlus::shutdown() {
     setVoltage(0.0);
 
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 
     LDO_disable();
 
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 }
 
 bool NerdQaxePlus::initAsics()
@@ -127,13 +124,13 @@ bool NerdQaxePlus::initAsics()
     gpio_set_level(BM1368_RST_PIN, 0);
 
     // wait 250ms
-    vTaskDelay(pdMS_TO_TICKS(250));
+    vTaskDelay(250 / portTICK_PERIOD_MS);
 
     // enable LDOs
     LDO_enable();
 
     // wait 100ms
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     // init buck and enable output
     m_tps->init(m_numPhases, m_imax, m_ifault);
@@ -143,27 +140,27 @@ bool NerdQaxePlus::initAsics()
     setVoltage((float) MAX(m_initVoltageMillis, m_asicVoltageMillis) / 1000.0f);
 
     // wait 500ms
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 
     // release reset pin
     gpio_set_level(BM1368_RST_PIN, 1);
 
     // delay for 250ms
-    vTaskDelay(pdMS_TO_TICKS(250));
+    vTaskDelay(250 / portTICK_PERIOD_MS);
 
     SERIAL_clear_buffer();
-    m_chipsDetected = m_asics->init(m_asicFrequency, m_asicCount, m_asicMaxDifficulty, m_vrFrequency);
+    m_chipsDetected = m_asics->init(m_asicFrequency, m_asicCount, m_asicMaxDifficulty);
     if (!m_chipsDetected) {
         ESP_LOGE(TAG, "error initializing asics!");
         return false;
     }
     int maxBaud = m_asics->setMaxBaud();
     // no idea why a delay is needed here starting with esp-idf 5.4 🙈
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
     SERIAL_set_baud(maxBaud);
     SERIAL_clear_buffer();
 
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 
     // set final output voltage
     setVoltage((float) m_asicVoltageMillis / 1000.0f);
@@ -191,12 +188,9 @@ void NerdQaxePlus::LDO_disable()
 
 bool NerdQaxePlus::setVoltage(float core_voltage)
 {
-    if (!validateVoltage(core_voltage)) {
-        return false;
-    }
-
     ESP_LOGI(TAG, "Set ASIC voltage = %.3fV", core_voltage);
-    return m_tps->set_vout(core_voltage);
+    m_tps->set_vout(core_voltage);
+    return true;
 }
 
 void NerdQaxePlus::setFanSpeed(float perc) {

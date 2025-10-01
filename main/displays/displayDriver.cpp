@@ -26,6 +26,9 @@
 
 static const char *TAG = "TDisplayS3";
 
+static constexpr uint16_t AUTO_SCREEN_ROTATE_MIN_SECONDS = 5;
+static constexpr uint16_t AUTO_SCREEN_ROTATE_MAX_SECONDS = 600;
+
 DisplayDriver::DisplayDriver() {
     m_animationsEnabled = false;
     m_button1PressedFlag = false;
@@ -39,6 +42,7 @@ DisplayDriver::DisplayDriver() {
     m_btcPrice = 0;
     m_blockHeight = 0;
     m_isActiveOverlay = false;
+    m_lastAutoScreenCycleTime = 0;
 }
 
 bool DisplayDriver::notifyLvglFlushReady(esp_lcd_panel_io_handle_t panelIo, esp_lcd_panel_io_event_data_t* edata,
@@ -77,6 +81,7 @@ void DisplayDriver::displayTurnOn(void) {
     gpio_set_level(TDISPLAYS3_PIN_NUM_BK_LIGHT, TDISPLAYS3_LCD_BK_LIGHT_ON_LEVEL);
     ESP_LOGI(TAG, "Screen on");
     m_displayIsOn = true;
+    m_lastAutoScreenCycleTime = esp_timer_get_time();
 }
 
 /************ AUTO TURN OFF DISPLAY FUNCTIONS *************/
@@ -176,6 +181,7 @@ void DisplayDriver::hideFoundBlockOverlay() {
 }
 
 void DisplayDriver::changeScreen(void) {
+    m_lastAutoScreenCycleTime = esp_timer_get_time();
     APIs_FETCHER.disableFetching();
     if (m_screenStatus == SCREEN_MINING) {
         enableLvglAnimations(true);
@@ -209,10 +215,10 @@ void DisplayDriver::lvglTimerTaskWrapper(void *param) {
 void DisplayDriver::lvglTimerTask(void *param)
 {
     int64_t myLastTime = esp_timer_get_time();
-    bool autoOffEnabled = Config::isAutoScreenOffEnabled();
     // int64_t current_time = esp_timer_get_time();
 
     displayTurnOn();
+    m_lastAutoScreenCycleTime = esp_timer_get_time();
 
     // Check if screen is changing to avoid problems during change
     // if ((current_time - last_screen_change_time) < 1500000) return; // 1500000 microsegundos = 1500 ms = 1.5s - No cambies
@@ -220,12 +226,24 @@ void DisplayDriver::lvglTimerTask(void *param)
 
     int32_t elapsed_Ani_cycles = 0;
     while (1) {
+        bool autoOffEnabled = Config::isAutoScreenOffEnabled();
+        bool autoScreenCycleEnabled = Config::isAutoScreenRotateEnabled();
+        uint16_t autoScreenCycleSeconds = Config::getAutoScreenRotateInterval();
+        if (autoScreenCycleSeconds == 0) {
+            autoScreenCycleSeconds = CONFIG_AUTO_SCREEN_ROTATE_INTERVAL;
+        }
+        if (autoScreenCycleSeconds < AUTO_SCREEN_ROTATE_MIN_SECONDS) {
+            autoScreenCycleSeconds = AUTO_SCREEN_ROTATE_MIN_SECONDS;
+        } else if (autoScreenCycleSeconds > AUTO_SCREEN_ROTATE_MAX_SECONDS) {
+            autoScreenCycleSeconds = AUTO_SCREEN_ROTATE_MAX_SECONDS;
+        }
+        const int64_t autoScreenCycleIntervalUs = static_cast<int64_t>(autoScreenCycleSeconds) * 1000000LL;
 
         // Enabled when change screen animation is activated
         if (m_animationsEnabled) {
             increaseLvglTick();
             lv_timer_handler();                 // Process pending LVGL tasks
-            vTaskDelay(pdMS_TO_TICKS(5)); // Delay during animations
+            vTaskDelay(5 / portTICK_PERIOD_MS); // Delay during animations
             if (elapsed_Ani_cycles++ > 80) {
                 // After 1s aprox stop animations
                 m_animationsEnabled = false;
@@ -235,34 +253,20 @@ void DisplayDriver::lvglTimerTask(void *param)
             if (m_button1PressedFlag) {
                 m_button1PressedFlag = false;
                 m_lastKeypressTime = esp_timer_get_time();
-
-                if (m_isActiveOverlay) {
-                    hideFoundBlockOverlay();
-                } else {
-                    if (!m_displayIsOn) {
-                        displayTurnOn();
-                    }
-                    changeScreen();
-                }
+                if (!m_displayIsOn)
+                    displayTurnOn();
+                changeScreen();
             }
-            vTaskDelay(pdMS_TO_TICKS(200)); // Delay waiting animation trigger
+            vTaskDelay(200 / portTICK_PERIOD_MS); // Delay waiting animation trigger
         }
-
         if (m_button2PressedFlag) {
             m_button2PressedFlag = false;
             m_lastKeypressTime = esp_timer_get_time();
-
-            if (m_displayIsOn) {
-                if (m_isActiveOverlay) {
-                    hideFoundBlockOverlay();
-                } else {
-                    displayTurnOff();
-                }
-            } else {
+            if (m_displayIsOn)
+                displayTurnOff();
+            else
                 displayTurnOn();
-            }
         }
-
 
         // Check if we have a screen turned-on override
         if (m_isActiveOverlay) {
@@ -270,6 +274,20 @@ void DisplayDriver::lvglTimerTask(void *param)
         } else if (autoOffEnabled) {
             // Check if screen need to be turned off
             checkAutoTurnOffScreen();
+        }
+
+        const bool canAutoCycle = autoScreenCycleEnabled && m_displayIsOn && !m_isActiveOverlay && !m_animationsEnabled &&
+            (m_screenStatus == SCREEN_MINING || m_screenStatus == SCREEN_SETTINGS ||
+             m_screenStatus == SCREEN_BTCPRICE || m_screenStatus == SCREEN_GLBSTATS);
+        const int64_t nowMicros = esp_timer_get_time();
+        if (canAutoCycle) {
+            if ((nowMicros - m_lastAutoScreenCycleTime) >= autoScreenCycleIntervalUs) {
+                changeScreen();
+                m_lastAutoScreenCycleTime = nowMicros;
+                continue;
+            }
+        } else {
+            m_lastAutoScreenCycleTime = nowMicros;
         }
 
         if ((m_screenStatus > STATE_INIT_OK))
@@ -488,10 +506,10 @@ void DisplayDriver::updateHashrate(System *module, float power)
     char strData[20];
 
     float efficiency = power / (module->getCurrentHashrate10m() / 1000.0);
-    float hashrate = module->getCurrentHashrate();
+    float hashrate = module->getCurrentHashrate10m();
 
-    // >= 10T doesn't fit on the screen with a decimal place
-    if (hashrate >= 10000.0) {
+    // >= 1.9999T doesn't fit on the screen with a decimal place
+    if (hashrate >= 1999.9) {
         snprintf(strData, sizeof(strData), "%d", (int) (hashrate + 0.5f));
     } else {
         snprintf(strData, sizeof(strData), "%.1f", hashrate);
@@ -579,7 +597,7 @@ void DisplayDriver::updateBTCprice(void)
         return;
 
     m_btcPrice = APIs_FETCHER.getPrice();
-    snprintf(price_str, sizeof(price_str), "%u$", m_btcPrice);
+    snprintf(price_str, sizeof(price_str), "$%u", m_btcPrice);
     lv_label_set_text(m_ui->ui_lblBTCPrice, price_str); // Update label
 }
 
@@ -655,7 +673,7 @@ void DisplayDriver::updateGlobalState()
     lv_label_set_text(m_ui->ui_lbVcore, strData); // Update label
 }
 
-void DisplayDriver::updateIpAddress(const char *ip_address_str)
+void DisplayDriver::updateIpAddress(char *ip_address_str)
 {
     if (m_ui->ui_MiningScreen == NULL)
         return;
@@ -688,11 +706,6 @@ void DisplayDriver::miningScreen(void)
     if (m_ui->ui_GlobalStats == NULL)
         m_ui->globalStatsScreenInit();
     m_nextScreen = SCREEN_MINING;
-
-    // nasty hack
-    // needed to be able to switch to the mining screen when the
-    // portal screen was shown and wifi STA recovers
-    m_screenStatus = STATE_INIT_OK;
 }
 
 void DisplayDriver::portalScreen(const char *message)

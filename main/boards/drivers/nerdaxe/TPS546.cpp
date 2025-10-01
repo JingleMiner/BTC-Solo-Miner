@@ -20,7 +20,7 @@
 #define NACK_VALUE ((i2c_ack_type_t) 0x1)
 #define MAX_BLOCK_LEN  32
 
-#define SMBUS_DEFAULT_TIMEOUT pdMS_TO_TICKS(1000)
+#define SMBUS_DEFAULT_TIMEOUT (1000 / portTICK_PERIOD_MS)
 
 static const char *TAG = "TPS546";
 
@@ -765,43 +765,35 @@ void TPS546_print_status(void) {
  * send a 0 to turn off the output
  * @param volts The desired output voltage
 **/
-bool TPS546_set_vout(float volts)
+void TPS546_set_vout(float volts)
 {
     uint16_t value;
 
     if (volts == 0) {
-        // turn off output
+        /* turn off output */
         if (smb_write_byte(PMBUS_OPERATION, OPERATION_OFF) != ESP_OK) {
             ESP_LOGE(TAG, "Could not turn off Vout");
-            return false;
         }
-        return true;
+    } else {
+        /* make sure we're in range */
+        if ((volts < TPS546_INIT_VOUT_MIN) || (volts > TPS546_INIT_VOUT_MAX)) {
+            ESP_LOGE(TAG, "Voltage requested (%f V) is out of range", volts);
+        } else {
+            /* set the output voltage */
+            value = float_2_ulinear16(volts);
+            if (smb_write_word(PMBUS_VOUT_COMMAND, value) != ESP_OK) {
+                ESP_LOGE(TAG, "Could not set Vout to %1.2f V", volts);
+            }
+
+            ESP_LOGI(TAG, "Vout changed to %1.2f V", volts);
+
+            /* turn on output */
+           if (smb_write_byte(PMBUS_OPERATION, OPERATION_ON) != ESP_OK) {
+                ESP_LOGE(TAG, "Could not turn on Vout");
+            }
+        }
     }
-
-    // check range
-    if ((volts < TPS546_INIT_VOUT_MIN) || (volts > TPS546_INIT_VOUT_MAX)) {
-        ESP_LOGE(TAG, "Voltage requested (%f V) is out of range", volts);
-        return false;
-    }
-
-    // set output voltage
-    value = float_2_ulinear16(volts);
-    if (smb_write_word(PMBUS_VOUT_COMMAND, value) != ESP_OK) {
-        ESP_LOGE(TAG, "Could not set Vout to %1.2f V", volts);
-        return false;
-    }
-
-    ESP_LOGI(TAG, "Vout changed to %1.2f V", volts);
-
-    // turn on output
-    if (smb_write_byte(PMBUS_OPERATION, OPERATION_ON) != ESP_OK) {
-        ESP_LOGE(TAG, "Could not turn on Vout");
-        return false;
-    }
-
-    return true;
 }
-
 
 void TPS546_show_voltage_settings(void)
 {

@@ -12,7 +12,6 @@ import { InfluxDBModule } from './influxdb/influxdb.module';
 import { SystemModule } from './system/system.module';
 import { SwarmModule } from './swarm/swarm.module';
 import { HomeModule } from './home/home.module';
-import { AlertModule } from './alert/alert.module';
 
 //import { PipesModule} from '../pipes/pipes.module';
 
@@ -30,7 +29,6 @@ import { AlertModule } from './alert/alert.module';
     InfluxDBModule,
     SystemModule,
     SwarmModule,
-    AlertModule,
     //PipesModule,
     HomeModule,
     ],

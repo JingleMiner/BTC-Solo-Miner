@@ -27,6 +27,4 @@ NerdOctaxeGamma::NerdOctaxeGamma() : NerdQaxePlus2() {
 #ifdef NERDOCTAXEGAMMA
     m_theme = new ThemeNerdoctaxegamma();
 #endif
-
-    m_swarmColorName = "#11d51e"; // green
 }

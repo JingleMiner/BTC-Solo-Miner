@@ -16,6 +16,7 @@ class NerdAxe : public Board {
     virtual bool initBoard();
     virtual bool initAsics();
 
+// abstract common methos
     virtual bool setVoltage(float core_voltage);
 
     virtual void setFanSpeed(float perc);

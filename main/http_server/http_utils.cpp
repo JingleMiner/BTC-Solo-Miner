@@ -4,7 +4,6 @@
 #include "ArduinoJson.h"
 
 #include "http_utils.h"
-#include "macros.h"
 
 static const char *TAG = "http_utils";
 

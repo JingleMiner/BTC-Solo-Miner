@@ -6,6 +6,8 @@ export interface ISystemInfo {
     flipscreen: number;
     invertscreen: number;
     autoscreenoff: number;
+    autoScreenCycle: number;
+    autoScreenCycleInterval: number;
     power: number,
     maxPower: number,
     minPower: number,
@@ -29,7 +31,6 @@ export interface ISystemInfo {
     hostname: string,
     hostip: string,
     macAddr: string,
-    wifiRSSI: number,
     ssid: string,
     wifiPass: string,
     wifiStatus: string,
@@ -43,11 +44,9 @@ export interface ISystemInfo {
     stratumURL: string,
     stratumPort: number,
     stratumUser: string,
-    stratumEnonceSubscribe: number,
     fallbackStratumURL: string,
     fallbackStratumPort: number,
     fallbackStratumUser: string,
-    fallbackStratumEnonceSubscribe: number,
     isUsingFallbackStratum: boolean,
     isStratumConnected: boolean,
     stratumDifficulty: number,
@@ -64,9 +63,6 @@ export interface ISystemInfo {
     lastResetReason: string,
     jobInterval: number,
     lastpingrtt: number,
-    stratum_keep: number,
-    defaultVrFrequency?: number,
-    vrFrequency: number,
 
     boardtemp1?: number,
     boardtemp2?: number,

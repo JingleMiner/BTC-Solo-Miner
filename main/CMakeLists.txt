@@ -1,9 +1,39 @@
+# Set compiler definitions based on board type
+set(BOARD_DEFINITIONS "")
+if("$ENV{BOARD}" STREQUAL "NERDQAXEPLUS2")
+    set(BOARD_DEFINITIONS "NERDQAXEPLUS2")
+    message(STATUS "Building for NERDQAXEPLUS2")
+elseif("$ENV{BOARD}" STREQUAL "NERDQAXEPLUS")
+    set(BOARD_DEFINITIONS "NERDQAXEPLUS")
+    message(STATUS "Building for NERDQAXEPLUS")
+elseif("$ENV{BOARD}" STREQUAL "NERDOCTAXEPLUS")
+    set(BOARD_DEFINITIONS "NERDOCTAXEPLUS")
+    message(STATUS "Building for NERDOCTAXEPLUS")
+elseif("$ENV{BOARD}" STREQUAL "NERDAXE")
+    set(BOARD_DEFINITIONS "NERDAXE")
+    message(STATUS "Building for NERDAXE")
+elseif("$ENV{BOARD}" STREQUAL "NERDOCTAXEGAMMA")
+    set(BOARD_DEFINITIONS "NERDOCTAXEGAMMA")
+    message(STATUS "Building for NERDOCTAXEGAMMA")
+elseif("$ENV{BOARD}" STREQUAL "NERDAXEGAMMA")
+    set(BOARD_DEFINITIONS "NERDAXEGAMMA")
+    message(STATUS "Building for NERDAXEGAMMA")
+elseif("$ENV{BOARD}" STREQUAL "NERDHAXEGAMMA")
+    set(BOARD_DEFINITIONS "NERDHAXEGAMMA")
+    message(STATUS "Building for NERDHAXEGAMMA")
+elseif("$ENV{BOARD}" STREQUAL "NERDEKO")
+    set(BOARD_DEFINITIONS "NERDEKO")
+    message(STATUS "Building for NERDEKO")
+else()
+    set(BOARD_DEFINITIONS "NERDQAXEPLUS")
+    message(STATUS "Building for default NERDQAXEPLUS")
+endif()
+
 idf_component_register(
 SRCS
     "main.cpp"
     "nvs_config.cpp"
     "system.cpp"
-    "connect.cpp"
     "boards/board.cpp"
     "boards/nerdaxe.cpp"
     "boards/nerdaxegamma.cpp"
@@ -24,15 +54,14 @@ SRCS
     "boards/drivers/nerdaxe/adc.cpp"
     "boards/drivers/i2c_master.cpp"
     "history.cpp"
-    "discord.cpp"
     "./pid/PID_v1_bc.cpp"
     "./pid/pid_timer.cpp"
+
     "./http_server/http_server.cpp"
     "./http_server/http_cors.cpp"
     "./http_server/http_utils.cpp"
     "./http_server/http_websocket.cpp"
     "./http_server/handler_influx.cpp"
-    "./http_server/handler_alert.cpp"
     "./http_server/handler_swarm.cpp"
     "./http_server/handler_system.cpp"
     "./http_server/handler_ota.cpp"
@@ -45,9 +74,7 @@ SRCS
     "./tasks/influx_task.cpp"
     "./tasks/ping_task.cpp"
     "./tasks/power_management_task.cpp"
-    "./tasks/hashrate_monitor_task.cpp"
     "./tasks/apis_task.cpp"
-    "./tasks/wifi_health.cpp"
     "./displays/displayDriver.cpp"
     "./displays/ui.cpp"
     "./displays/ui_helpers.cpp"
@@ -72,12 +99,13 @@ INCLUDE_DIRS
     "displays/images"
     "boards"
     "boards/drivers"
+    "../components/connect/include"
     "../components/dns_server/include"
     "../components/bm1397/include"
     "../components/influx/include"
     "../components/stratum/include"
 
-    PRIV_REQUIRES
+PRIV_REQUIRES
     "app_update"
     "driver"
     "esp_adc"
@@ -99,6 +127,8 @@ INCLUDE_DIRS
     "lwip"
 )
 
+# Set the compile definition after component registration
+target_compile_definitions(${COMPONENT_LIB} PRIVATE ${BOARD_DEFINITIONS})
 
 set(WEB_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/http_server/axe-os")
 
