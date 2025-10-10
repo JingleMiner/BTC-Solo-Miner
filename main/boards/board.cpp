@@ -5,6 +5,7 @@
 #include "nvs_config.h"
 #include "esp_log.h"
 #include "../displays/displayDriver.h"
+#include <algorithm>
 
 const static char* TAG = "board";
 
@@ -12,7 +13,7 @@ Board::Board() {
     // afc settings
     m_afcMinTemp = 45.0f;
     m_afcMinFanSpeed = 35.0f;
-    m_afcMaxTemp = 65.0f;
+    m_afcMaxTemp = 70.0f;
     m_fanAutoPolarity = true; // default detect polarity
 }
 
@@ -116,10 +117,19 @@ float Board::automaticFanSpeed(float temp)
         result = 100;
     } else {
         float temp_range = m_afcMaxTemp - m_afcMinTemp;
-        float fan_range = 100.0f - m_afcMinFanSpeed;
-        result = ((temp - m_afcMinTemp) / temp_range) * fan_range + m_afcMinFanSpeed;
+        //float fan_range = 100.0f - m_afcMinFanSpeed;
+        //result = ((temp - m_afcMinTemp) / temp_range) * fan_range + m_afcMinFanSpeed;
+        if (temp_range > 0) {
+            float k = (100.0f - m_afcMinFanSpeed) / (temp_range * temp_range);
+            float delta = temp - m_afcMinTemp;
+            delta = delta < 0 ? 0 : delta;
+            result = k * (delta * delta) + m_afcMinFanSpeed;
+        } else {
+            result = 100.0f;
+        }
     }
-
+    
+    result = std::clamp(result, m_afcMinFanSpeed, 100.0f);
     return result;
 }
 

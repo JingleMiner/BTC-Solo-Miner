@@ -26,6 +26,9 @@
 
 static const char *TAG = "TDisplayS3";
 
+static constexpr uint16_t AUTO_SCREEN_ROTATE_MIN_SECONDS = 5;
+static constexpr uint16_t AUTO_SCREEN_ROTATE_MAX_SECONDS = 600;
+
 DisplayDriver::DisplayDriver() {
     m_animationsEnabled = false;
     m_button1PressedFlag = false;
@@ -39,6 +42,7 @@ DisplayDriver::DisplayDriver() {
     m_btcPrice = 0;
     m_blockHeight = 0;
     m_isActiveOverlay = false;
+    m_lastAutoScreenCycleTime = 0;
 }
 
 bool DisplayDriver::notifyLvglFlushReady(esp_lcd_panel_io_handle_t panelIo, esp_lcd_panel_io_event_data_t* edata,
@@ -77,6 +81,7 @@ void DisplayDriver::displayTurnOn(void) {
     gpio_set_level(TDISPLAYS3_PIN_NUM_BK_LIGHT, TDISPLAYS3_LCD_BK_LIGHT_ON_LEVEL);
     ESP_LOGI(TAG, "Screen on");
     m_displayIsOn = true;
+    m_lastAutoScreenCycleTime = esp_timer_get_time();
 }
 
 /************ AUTO TURN OFF DISPLAY FUNCTIONS *************/
@@ -176,6 +181,7 @@ void DisplayDriver::hideFoundBlockOverlay() {
 }
 
 void DisplayDriver::changeScreen(void) {
+    m_lastAutoScreenCycleTime = esp_timer_get_time();
     APIs_FETCHER.disableFetching();
     if (m_screenStatus == SCREEN_MINING) {
         enableLvglAnimations(true);
@@ -209,10 +215,10 @@ void DisplayDriver::lvglTimerTaskWrapper(void *param) {
 void DisplayDriver::lvglTimerTask(void *param)
 {
     int64_t myLastTime = esp_timer_get_time();
-    bool autoOffEnabled = Config::isAutoScreenOffEnabled();
     // int64_t current_time = esp_timer_get_time();
 
     displayTurnOn();
+    m_lastAutoScreenCycleTime = esp_timer_get_time();
 
     // Check if screen is changing to avoid problems during change
     // if ((current_time - last_screen_change_time) < 1500000) return; // 1500000 microsegundos = 1500 ms = 1.5s - No cambies
@@ -220,6 +226,18 @@ void DisplayDriver::lvglTimerTask(void *param)
 
     int32_t elapsed_Ani_cycles = 0;
     while (1) {
+        bool autoOffEnabled = Config::isAutoScreenOffEnabled();
+        bool autoScreenCycleEnabled = Config::isAutoScreenRotateEnabled();
+        uint16_t autoScreenCycleSeconds = Config::getAutoScreenRotateInterval();
+        if (autoScreenCycleSeconds == 0) {
+            autoScreenCycleSeconds = CONFIG_AUTO_SCREEN_ROTATE_INTERVAL;
+        }
+        if (autoScreenCycleSeconds < AUTO_SCREEN_ROTATE_MIN_SECONDS) {
+            autoScreenCycleSeconds = AUTO_SCREEN_ROTATE_MIN_SECONDS;
+        } else if (autoScreenCycleSeconds > AUTO_SCREEN_ROTATE_MAX_SECONDS) {
+            autoScreenCycleSeconds = AUTO_SCREEN_ROTATE_MAX_SECONDS;
+        }
+        const int64_t autoScreenCycleIntervalUs = static_cast<int64_t>(autoScreenCycleSeconds) * 1000000LL;
 
         // Enabled when change screen animation is activated
         if (m_animationsEnabled) {
@@ -256,6 +274,20 @@ void DisplayDriver::lvglTimerTask(void *param)
         } else if (autoOffEnabled) {
             // Check if screen need to be turned off
             checkAutoTurnOffScreen();
+        }
+
+        const bool canAutoCycle = autoScreenCycleEnabled && m_displayIsOn && !m_isActiveOverlay && !m_animationsEnabled &&
+            (m_screenStatus == SCREEN_MINING || m_screenStatus == SCREEN_SETTINGS ||
+             m_screenStatus == SCREEN_BTCPRICE || m_screenStatus == SCREEN_GLBSTATS);
+        const int64_t nowMicros = esp_timer_get_time();
+        if (canAutoCycle) {
+            if ((nowMicros - m_lastAutoScreenCycleTime) >= autoScreenCycleIntervalUs) {
+                changeScreen();
+                m_lastAutoScreenCycleTime = nowMicros;
+                continue;
+            }
+        } else {
+            m_lastAutoScreenCycleTime = nowMicros;
         }
 
         if ((m_screenStatus > STATE_INIT_OK))
