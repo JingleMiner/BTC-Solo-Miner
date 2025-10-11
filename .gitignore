@@ -33,3 +33,4 @@ managed_components/*
 Agents.md
 release/*.cvs
 *.rar
+*.zip
