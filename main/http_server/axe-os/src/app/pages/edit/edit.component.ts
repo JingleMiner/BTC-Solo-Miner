@@ -8,6 +8,8 @@ import { eASICModel } from '../../models/enum/eASICModel';
 import { NbToastrService, NbDialogService, NbDialogRef } from '@nebular/theme';
 import { LocalStorageService } from 'src/app/services/local-storage.service';
 
+type PerformancePreset = 'normal' | 'overclock';
+
 @Component({
   selector: 'app-edit',
   templateUrl: './edit.component.html',
@@ -39,9 +41,9 @@ export class EditComponent implements OnInit {
   public defaultCoreVoltage: number = 0;
   
   // Mining performance selection (UI only)
-  private readonly PERFORMANCE_MAP: Record<string, { frequency: number; voltage: number }> = {
-    normal:        { frequency: 600, voltage: 1150 },
-    overclock:     { frequency: 635, voltage: 1150 },
+  private readonly PERFORMANCE_MAP: Record<PerformancePreset, { frequency: number; voltage: number }> = {
+    normal:    { frequency: 600, voltage: 1150 },
+    overclock: { frequency: 635, voltage: 1150 },
   };
   private readonly CUSTOM_CORE_VOLTAGE_MV = 1150;
   private readonly CUSTOM_FREQUENCY_MIN = 500;
@@ -428,17 +430,19 @@ export class EditComponent implements OnInit {
   }
 
   private determineInitialPerformance(freq: number, volt: number): string {
-    if (freq === this.PERFORMANCE_MAP.energy_saving.frequency && volt === this.PERFORMANCE_MAP.energy_saving.voltage) {
-      return 'energy_saving';
-    }
-    if (freq === this.PERFORMANCE_MAP.normal.frequency && volt === this.PERFORMANCE_MAP.normal.voltage) {
+    if (this.matchesPerformancePreset('normal', freq, volt)) {
       return 'normal';
     }
-    if (freq === this.PERFORMANCE_MAP.overclock.frequency && volt === this.PERFORMANCE_MAP.overclock.voltage) {
+    if (this.matchesPerformancePreset('overclock', freq, volt)) {
       return 'overclock';
     }
     // Fall back to custom mode when values do not match presets
     return 'custom';
+  }
+
+  private matchesPerformancePreset(level: PerformancePreset, freq: number, volt: number): boolean {
+    const preset = this.PERFORMANCE_MAP[level];
+    return preset?.frequency === freq && preset?.voltage === volt;
   }
 
   private onPerformanceLevelChanged(level: string): void {
