@@ -40,13 +40,12 @@ export class EditComponent implements OnInit {
   
   // Mining performance selection (UI only)
   private readonly PERFORMANCE_MAP: Record<string, { frequency: number; voltage: number }> = {
-    energy_saving: { frequency: 575, voltage: 1100 },
     normal:        { frequency: 600, voltage: 1150 },
-    overclock:     { frequency: 600, voltage: 1200 },
+    overclock:     { frequency: 635, voltage: 1150 },
   };
   private readonly CUSTOM_CORE_VOLTAGE_MV = 1150;
   private readonly CUSTOM_FREQUENCY_MIN = 500;
-  private readonly CUSTOM_FREQUENCY_MAX = 650;
+  private readonly CUSTOM_FREQUENCY_MAX = 700;
   private readonly AUTO_SCREEN_CYCLE_INTERVAL_MIN = 5;
   private readonly AUTO_SCREEN_CYCLE_INTERVAL_MAX = 600;
   private readonly AUTO_SCREEN_CYCLE_INTERVAL_DEFAULT = 10;
