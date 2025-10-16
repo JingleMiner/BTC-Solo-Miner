@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <math.h>
+#include <inttypes.h>
 
 #include "esp_log.h"
 #include "esp_system.h"
@@ -204,7 +205,7 @@ void *create_jobs_task(void *pvParameters)
     uint32_t current_job_interval = configured_job_interval;
     bool adaptive_scheduling_enabled = board->getNominalHashrateGh() > 0.0f;
 
-    ESP_LOGI(TAG, "ASIC Job Interval: %u ms (adaptive %s, nominal %.1f GH/s)", configured_job_interval,
+    ESP_LOGI(TAG, "ASIC Job Interval: %" PRIu32 " ms (adaptive %s, nominal %.1f GH/s)", configured_job_interval,
              adaptive_scheduling_enabled ? "on" : "off", board->getNominalHashrateGh());
     SYSTEM_MODULE.notifyMiningStarted();
     ESP_LOGI(TAG, "ASIC Ready!");
@@ -245,7 +246,7 @@ void *create_jobs_task(void *pvParameters)
             configured_job_interval = (uint32_t) max((int) configured_interval, (int) MIN_ADAPTIVE_JOB_INTERVAL_MS);
             current_job_interval = configured_job_interval;
             xTimerChangePeriod(job_timer, pdMS_TO_TICKS(current_job_interval), 0);
-            ESP_LOGI(TAG, "Job interval updated to %u ms (user override)", current_job_interval);
+            ESP_LOGI(TAG, "Job interval updated to %" PRIu32 " ms (user override)", current_job_interval);
             continue;
         }
 
@@ -290,7 +291,7 @@ void *create_jobs_task(void *pvParameters)
         pthread_mutex_unlock(&current_stratum_job_mutex);
 
         if (next_job->asic_diff != last_asic_diff) {
-            ESP_LOGI(TAG, "New ASIC difficulty %lu", next_job->asic_diff);
+            ESP_LOGI(TAG, "New ASIC difficulty %" PRIu32, next_job->asic_diff);
             last_asic_diff = next_job->asic_diff;
 
             asics->setJobDifficultyMask(next_job->asic_diff);
@@ -314,7 +315,7 @@ void *create_jobs_task(void *pvParameters)
                 }
                 uint32_t idle_index = ++s_idle_event_count;
                 ESP_LOGW(TAG,
-                         "ASIC idle detected #%u idle %.1f ms (interval %.1f ms, job runtime %.1f ms, hashrate %.2f GH/s, total idle %.1f s, max idle %.1f ms)",
+                         "ASIC idle detected #%" PRIu32 " idle %.1f ms (interval %.1f ms, job runtime %.1f ms, hashrate %.2f GH/s, total idle %.1f s, max idle %.1f ms)",
                          idle_index, idle_ms, actual_interval_ms, job_runtime_ms, hashrateGh,
                          s_total_idle_time_ms / 1000.0, s_max_idle_time_ms);
             }
@@ -350,7 +351,8 @@ void *create_jobs_task(void *pvParameters)
                 if (diff >= 10U) {
                     current_job_interval = new_interval;
                     xTimerChangePeriod(job_timer, pdMS_TO_TICKS(current_job_interval), 0);
-                    ESP_LOGD(TAG, "Adaptive job interval -> %u ms (target %u ms)", current_job_interval, target_interval);
+                    ESP_LOGD(TAG, "Adaptive job interval -> %" PRIu32 " ms (target %" PRIu32 " ms)", current_job_interval,
+                             target_interval);
                 }
             }
         }
