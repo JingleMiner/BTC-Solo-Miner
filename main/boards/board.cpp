@@ -15,6 +15,7 @@ Board::Board() {
     m_afcMinFanSpeed = 35.0f;
     m_afcMaxTemp = 70.0f;
     m_fanAutoPolarity = true; // default detect polarity
+    m_nominalHashrateGh = 0.0f;
 }
 
 void Board::loadSettings()

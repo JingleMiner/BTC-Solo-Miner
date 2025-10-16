@@ -57,6 +57,7 @@ NerdQaxePlus::NerdQaxePlus() : Board() {
 
     m_asicMaxDifficulty = 1024;
     m_asicMinDifficulty = 256;
+    m_nominalHashrateGh = 4800.0f;
 
 #ifdef NERDQAXEPLUS
     m_theme = new ThemeNerdqaxeplus();

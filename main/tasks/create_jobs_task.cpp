@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
+#include <math.h>
 
 #include "esp_log.h"
 #include "esp_system.h"
@@ -28,6 +29,52 @@ static int extranonce_2_len = 0;
 static uint32_t stratum_difficulty = 8192;
 static uint32_t active_stratum_difficulty = 8192;
 static uint32_t version_mask = 0;
+
+#define MIN_ADAPTIVE_JOB_INTERVAL_MS 200U
+#define HASHRATE_SAFETY_FACTOR 0.7f
+#define HASHRATE_MEASURED_THRESHOLD_GH 100.0f
+
+static inline uint32_t clamp_job_interval(uint32_t interval_ms)
+{
+    return (interval_ms < MIN_ADAPTIVE_JOB_INTERVAL_MS) ? MIN_ADAPTIVE_JOB_INTERVAL_MS : interval_ms;
+}
+
+static float fetch_effective_hashrate_gh(Board *board)
+{
+    if (!board) {
+        return 0.0f;
+    }
+
+    History *history = SYSTEM_MODULE.getHistory();
+    if (history) {
+        double measuredGh = history->getCurrentHashrate10m();
+        if (measuredGh > HASHRATE_MEASURED_THRESHOLD_GH) {
+            return (float) measuredGh;
+        }
+    }
+
+    return board->getNominalHashrateGh();
+}
+
+static uint32_t compute_adaptive_job_interval(Board *board, uint32_t configured_ms)
+{
+    float hashrateGh = fetch_effective_hashrate_gh(board);
+    if (hashrateGh <= 0.0f) {
+        return configured_ms;
+    }
+
+    const double nonces_per_job = 4294967296.0; // 2^32
+    double job_seconds = nonces_per_job / (hashrateGh * 1e9);
+    double target_ms = job_seconds * 1000.0 * HASHRATE_SAFETY_FACTOR;
+
+    uint32_t adaptive_ms = clamp_job_interval((uint32_t) ceil(target_ms));
+
+    if (configured_ms > 0) {
+        adaptive_ms = (adaptive_ms < configured_ms) ? adaptive_ms : configured_ms;
+    }
+
+    return adaptive_ms;
+}
 
 #define min(a, b) ((a < b) ? (a) : (b))
 #define max(a, b) ((a > b) ? (a) : (b))
@@ -112,12 +159,17 @@ void *create_jobs_task(void *pvParameters)
     Board *board = SYSTEM_MODULE.getBoard();
     Asic *asics = board->getAsics();
 
-    ESP_LOGI(TAG, "ASIC Job Interval: %d ms", board->getAsicJobIntervalMs());
+    uint32_t configured_job_interval = (uint32_t) max(board->getAsicJobIntervalMs(), (int) MIN_ADAPTIVE_JOB_INTERVAL_MS);
+    uint32_t current_job_interval = configured_job_interval;
+    bool adaptive_scheduling_enabled = board->getNominalHashrateGh() > 0.0f;
+
+    ESP_LOGI(TAG, "ASIC Job Interval: %u ms (adaptive %s, nominal %.1f GH/s)", configured_job_interval,
+             adaptive_scheduling_enabled ? "on" : "off", board->getNominalHashrateGh());
     SYSTEM_MODULE.notifyMiningStarted();
     ESP_LOGI(TAG, "ASIC Ready!");
 
     // Create the timer
-    TimerHandle_t job_timer = xTimerCreate(TAG, pdMS_TO_TICKS(board->getAsicJobIntervalMs()), pdTRUE, NULL, create_job_timer);
+    TimerHandle_t job_timer = xTimerCreate(TAG, pdMS_TO_TICKS(current_job_interval), pdTRUE, NULL, create_job_timer);
 
     if (job_timer == NULL) {
         ESP_LOGE(TAG, "Failed to create timer");
@@ -138,7 +190,7 @@ void *create_jobs_task(void *pvParameters)
     uint64_t last_submit_time = 0;
     uint32_t extranonce_2 = 0;
 
-    int lastJobInterval = board->getAsicJobIntervalMs();
+    uint32_t last_configured_interval = (uint32_t) board->getAsicJobIntervalMs();
 
     while (1) {
         pthread_mutex_lock(&job_mutex);
@@ -146,9 +198,13 @@ void *create_jobs_task(void *pvParameters)
         pthread_mutex_unlock(&job_mutex);
 
         // job interval changed via UI
-        if (board->getAsicJobIntervalMs() != lastJobInterval) {
-            xTimerChangePeriod(job_timer, pdMS_TO_TICKS(board->getAsicJobIntervalMs()), 0);
-            lastJobInterval = board->getAsicJobIntervalMs();
+        uint32_t configured_interval = (uint32_t) board->getAsicJobIntervalMs();
+        if (configured_interval != last_configured_interval) {
+            last_configured_interval = configured_interval;
+            configured_job_interval = (uint32_t) max((int) configured_interval, (int) MIN_ADAPTIVE_JOB_INTERVAL_MS);
+            current_job_interval = configured_job_interval;
+            xTimerChangePeriod(job_timer, pdMS_TO_TICKS(current_job_interval), 0);
+            ESP_LOGI(TAG, "Job interval updated to %u ms (user override)", current_job_interval);
             continue;
         }
 
@@ -213,6 +269,31 @@ void *create_jobs_task(void *pvParameters)
         asicJobs.storeJob(next_job, asic_job_id);
 
         extranonce_2++;
+
+        if (adaptive_scheduling_enabled) {
+            uint32_t target_interval = compute_adaptive_job_interval(board, configured_job_interval);
+            uint32_t new_interval = current_job_interval;
+
+            if (target_interval < current_job_interval) {
+                new_interval = clamp_job_interval((current_job_interval * 3u + target_interval) / 4u);
+            } else if (target_interval > current_job_interval) {
+                uint32_t blended = (current_job_interval * 7u + target_interval) / 8u;
+                if (blended > configured_job_interval) {
+                    blended = configured_job_interval;
+                }
+                new_interval = clamp_job_interval(blended);
+            }
+
+            if (new_interval != current_job_interval) {
+                uint32_t diff = (new_interval > current_job_interval) ? (new_interval - current_job_interval)
+                                                                      : (current_job_interval - new_interval);
+                if (diff >= 10U) {
+                    current_job_interval = new_interval;
+                    xTimerChangePeriod(job_timer, pdMS_TO_TICKS(current_job_interval), 0);
+                    ESP_LOGD(TAG, "Adaptive job interval -> %u ms (target %u ms)", current_job_interval, target_interval);
+                }
+            }
+        }
     }
 
     return NULL;

@@ -62,6 +62,9 @@ class Board {
     float m_afcMinFanSpeed;
     float m_afcMaxTemp;
 
+    // nominal hashrate estimate (GH/s) used for scheduling heuristics
+    float m_nominalHashrateGh;
+
     // display m_theme
     Theme *m_theme = nullptr;
 
@@ -176,6 +179,11 @@ class Board {
     float getMinVin()
     {
         return m_minVin;
+    }
+
+    float getNominalHashrateGh() const
+    {
+        return m_nominalHashrateGh;
     }
 
     float getMaxVin()
