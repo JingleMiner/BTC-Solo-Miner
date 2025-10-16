@@ -31,8 +31,13 @@ static uint32_t active_stratum_difficulty = 8192;
 static uint32_t version_mask = 0;
 
 #define MIN_ADAPTIVE_JOB_INTERVAL_MS 200U
+#define IDLE_REPORT_THRESHOLD_MS 10.0
 #define HASHRATE_SAFETY_FACTOR 0.7f
 #define HASHRATE_MEASURED_THRESHOLD_GH 100.0f
+
+static double s_total_idle_time_ms = 0.0;
+static double s_max_idle_time_ms = 0.0;
+static uint32_t s_idle_event_count = 0;
 
 static inline uint32_t clamp_job_interval(uint32_t interval_ms)
 {
@@ -78,6 +83,42 @@ static uint32_t compute_adaptive_job_interval(Board *board, uint32_t configured_
 
 #define min(a, b) ((a < b) ? (a) : (b))
 #define max(a, b) ((a > b) ? (a) : (b))
+
+static bool compute_idle_metrics(Board *board, double actual_interval_ms, double *idle_ms_out, double *job_runtime_ms_out,
+                                 float *hashrate_gh_out)
+{
+    if (!board || actual_interval_ms <= 0.0) {
+        return false;
+    }
+
+    float hashrateGh = fetch_effective_hashrate_gh(board);
+    if (hashrateGh <= 0.0f) {
+        return false;
+    }
+
+    const double nonces_per_job = 4294967296.0; // 2^32
+    double job_runtime_ms = (nonces_per_job / (hashrateGh * 1e9)) * 1000.0;
+    if (job_runtime_ms <= 0.0) {
+        return false;
+    }
+
+    double idle_ms = actual_interval_ms - job_runtime_ms;
+    if (idle_ms < 0.0) {
+        idle_ms = 0.0;
+    }
+
+    if (idle_ms_out) {
+        *idle_ms_out = idle_ms;
+    }
+    if (job_runtime_ms_out) {
+        *job_runtime_ms_out = job_runtime_ms;
+    }
+    if (hashrate_gh_out) {
+        *hashrate_gh_out = hashrateGh;
+    }
+
+    return true;
+}
 
 static void create_job_timer(TimerHandle_t xTimer)
 {
@@ -258,6 +299,25 @@ void *create_jobs_task(void *pvParameters)
         uint64_t current_time = esp_timer_get_time();
         if (last_submit_time) {
             ESP_LOGD(TAG, "job interval %dms", (int) ((current_time - last_submit_time) / 1e3));
+        }
+        if (last_submit_time) {
+            double actual_interval_ms = (double) (current_time - last_submit_time) / 1000.0;
+            double idle_ms = 0.0;
+            double job_runtime_ms = 0.0;
+            float hashrateGh = 0.0f;
+
+            if (compute_idle_metrics(board, actual_interval_ms, &idle_ms, &job_runtime_ms, &hashrateGh) &&
+                idle_ms >= IDLE_REPORT_THRESHOLD_MS) {
+                s_total_idle_time_ms += idle_ms;
+                if (idle_ms > s_max_idle_time_ms) {
+                    s_max_idle_time_ms = idle_ms;
+                }
+                uint32_t idle_index = ++s_idle_event_count;
+                ESP_LOGW(TAG,
+                         "ASIC idle detected #%u idle %.1f ms (interval %.1f ms, job runtime %.1f ms, hashrate %.2f GH/s, total idle %.1f s, max idle %.1f ms)",
+                         idle_index, idle_ms, actual_interval_ms, job_runtime_ms, hashrateGh,
+                         s_total_idle_time_ms / 1000.0, s_max_idle_time_ms);
+            }
         }
         last_submit_time = current_time;
 
