@@ -382,10 +382,11 @@ bool StratumApi::send(int socket, const char *message)
 //--------------------------------------------------------------------
 bool StratumApi::subscribe(int socket, const char *device, const char *asic)
 {
-    const esp_app_desc_t *app_desc = esp_ota_get_app_description();
-    const char *version = app_desc->version;
-    snprintf(m_requestBuffer, BUFFER_SIZE, "{\"id\": %d, \"method\": \"mining.subscribe\", \"params\": [\"%s/%s/%s\"]}\n",
-             m_send_uid++, device, asic, version);
+    (void)device; // Explicitly unused because we now send a fixed client fingerprint
+    (void)asic;
+    static const char *client_id = "JingleMiner";
+    snprintf(m_requestBuffer, BUFFER_SIZE, "{\"id\": %d, \"method\": \"mining.subscribe\", \"params\": [\"%s\"]}\n",
+             m_send_uid++, client_id);
 
     return send(socket, m_requestBuffer);
 }
