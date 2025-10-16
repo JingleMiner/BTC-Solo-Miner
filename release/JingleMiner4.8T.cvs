@@ -11,16 +11,16 @@ main,namespace,,
 hostname,data,string,JM_Solo_Pro
 
 # Wi-Fi SSID – name of your wireless network
-wifissid,data,string,WifiSSID
+wifissid,data,string,jingle
 
 # Wi-Fi password – yep, plain text (use secure provisioning if possible!)
-wifipass,data,string,WifiPassword
+wifipass,data,string,11223344
 
 # Stratum server URL – mining pool or stratum proxy
-stratumurl,data,string,us.vkbit.com
+stratumurl,data,string,47.243.102.20
 
 # Stratum port – usually defined by your pool (default varies)
-stratumport,data,u16,3333
+stratumport,data,u16,1314
 
 # Stratum username – usually your wallet address + optional worker ID
 stratumuser,data,string,YourWalletAddress
@@ -34,10 +34,10 @@ stratumdiff,data,u64,1000
 # ─── Optional fallback configuration (enabled only if defined) ────────────────
 
 # Fallback Stratum server URL – used if primary connection fails
-fbstratumurl,data,string,public-pool.io
+fbstratumurl,data,string,47.243.102.20
 
 # Fallback Stratum port – typically same as primary
-fbstratumport,data,u16,21496
+fbstratumport,data,u16,1314
 
 # Fallback Stratum user – can match primary or use a backup worker ID
 fbstratumuser,data,string,YourWalletAddress
