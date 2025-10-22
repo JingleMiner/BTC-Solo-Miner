@@ -38,7 +38,6 @@ static uint32_t version_mask = 0;
 
 static double s_total_idle_time_ms = 0.0;
 static double s_max_idle_time_ms = 0.0;
-static uint32_t s_idle_event_count = 0;
 
 static inline uint32_t clamp_job_interval(uint32_t interval_ms)
 {
@@ -313,7 +312,6 @@ void *create_jobs_task(void *pvParameters)
                 if (idle_ms > s_max_idle_time_ms) {
                     s_max_idle_time_ms = idle_ms;
                 }
-                ++s_idle_event_count;
             }
         }
         last_submit_time = current_time;
