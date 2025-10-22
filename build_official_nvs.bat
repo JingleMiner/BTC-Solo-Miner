@@ -43,21 +43,23 @@ echo ===============================================
 echo [1/4] Setting build context (1.2T)...
 set BOARD=NERDAXEGAMMA
 
-echo [3/4] Checking firmware binary presence...
-if not exist "build\esp-miner.bin" (
-    echo Warning: Firmware binary missing, compiling first.
-    echo Building firmware...
-    idf.py set-target esp32s3
-    idf.py build
-    set "cmd_err=!errorlevel!"
-    if not "!cmd_err!"=="0" (
-        echo Error: Firmware build failed.
-        pause
-        exit /b 1
-    )
+echo [2/4] Building firmware (1.2T)...
+idf.py set-target esp32s3
+set "cmd_err=!errorlevel!"
+if not "!cmd_err!"=="0" (
+    echo Error: Target configuration failed.
+    pause
+    exit /b 1
+)
+idf.py build
+set "cmd_err=!errorlevel!"
+if not "!cmd_err!"=="0" (
+    echo Error: Firmware build failed (1.2T).
+    pause
+    exit /b 1
 )
 
-echo [2/4] Generating official NVS partition (1.2T)...
+echo [3/4] Generating official NVS partition (1.2T)...
 python "%NVS_TOOL%" generate release\JingleMiner1.2T.cvs build\nvs_1.2T_official.bin 0x6000
 set "cmd_err=!errorlevel!"
 if not "!cmd_err!"=="0" (
@@ -79,6 +81,16 @@ if not "!cmd_err!"=="0" (
 
 echo.
 
+echo [CLEAN] Resetting build directory before 4.8T build...
+idf.py fullclean
+set "cmd_err=!errorlevel!"
+if not "!cmd_err!"=="0" (
+    echo Error: Failed to clean build directory.
+    pause
+    exit /b 1
+)
+echo.
+
 REM ============ Build 4.8T Variant (Official NVS) ============
 echo ===============================================
 echo Building JingleMiner 4.8T (Official NVS)
@@ -87,21 +99,23 @@ echo ===============================================
 echo [1/4] Setting build context (4.8T)...
 set BOARD=NERDQAXEPLUS2
 
-echo [3/4] Checking firmware binary presence...
-if not exist "build\esp-miner.bin" (
-    echo Warning: Firmware binary missing, compiling first.
-    echo Building firmware...
-    idf.py set-target esp32s3
-    idf.py build
-    set "cmd_err=!errorlevel!"
-    if not "!cmd_err!"=="0" (
-        echo Error: Firmware build failed.
-        pause
-        exit /b 1
-    )
+echo [2/4] Building firmware (4.8T)...
+idf.py set-target esp32s3
+set "cmd_err=!errorlevel!"
+if not "!cmd_err!"=="0" (
+    echo Error: Target configuration failed.
+    pause
+    exit /b 1
+)
+idf.py build
+set "cmd_err=!errorlevel!"
+if not "!cmd_err!"=="0" (
+    echo Error: Firmware build failed (4.8T).
+    pause
+    exit /b 1
 )
 
-echo [2/4] Generating official NVS partition (4.8T)...
+echo [3/4] Generating official NVS partition (4.8T)...
 python "%NVS_TOOL%" generate release\JingleMiner4.8T.cvs build\nvs_4.8T_official.bin 0x6000
 set "cmd_err=!errorlevel!"
 if not "!cmd_err!"=="0" (
