@@ -313,11 +313,7 @@ void *create_jobs_task(void *pvParameters)
                 if (idle_ms > s_max_idle_time_ms) {
                     s_max_idle_time_ms = idle_ms;
                 }
-                uint32_t idle_index = ++s_idle_event_count;
-                ESP_LOGW(TAG,
-                         "ASIC idle detected #%" PRIu32 " idle %.1f ms (interval %.1f ms, job runtime %.1f ms, hashrate %.2f GH/s, total idle %.1f s, max idle %.1f ms)",
-                         idle_index, idle_ms, actual_interval_ms, job_runtime_ms, hashrateGh,
-                         s_total_idle_time_ms / 1000.0, s_max_idle_time_ms);
+                ++s_idle_event_count;
             }
         }
         last_submit_time = current_time;
