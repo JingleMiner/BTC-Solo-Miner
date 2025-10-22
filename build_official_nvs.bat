@@ -60,7 +60,7 @@ if not "!cmd_err!"=="0" (
 )
 
 echo [3/4] Generating official NVS partition (1.2T)...
-python "%NVS_TOOL%" generate release\JingleMiner1.2T.cvs build\nvs_1.2T_official.bin 0x6000
+python "%NVS_TOOL%" generate config\JingleMiner1.2T.cvs build\nvs_1.2T_official.bin 0x6000
 set "cmd_err=!errorlevel!"
 if not "!cmd_err!"=="0" (
     echo Error: NVS partition generation failed (1.2T).
@@ -116,7 +116,7 @@ if not "!cmd_err!"=="0" (
 )
 
 echo [3/4] Generating official NVS partition (4.8T)...
-python "%NVS_TOOL%" generate release\JingleMiner4.8T.cvs build\nvs_4.8T_official.bin 0x6000
+python "%NVS_TOOL%" generate config\JingleMiner4.8T.cvs build\nvs_4.8T_official.bin 0x6000
 set "cmd_err=!errorlevel!"
 if not "!cmd_err!"=="0" (
     echo Error: NVS partition generation failed (4.8T).

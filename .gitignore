@@ -31,6 +31,6 @@ config.cvs
 managed_components/*
 
 Agents.md
-release/*.cvs
+release/
 *.rar
 *.zip
