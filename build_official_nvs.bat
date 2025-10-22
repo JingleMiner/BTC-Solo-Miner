@@ -49,7 +49,8 @@ if not exist "build\esp-miner.bin" (
     echo Building firmware...
     idf.py set-target esp32s3
     idf.py build
-    if errorlevel 1 (
+    set "cmd_err=!errorlevel!"
+    if not "!cmd_err!"=="0" (
         echo Error: Firmware build failed.
         pause
         exit /b 1
@@ -58,7 +59,8 @@ if not exist "build\esp-miner.bin" (
 
 echo [2/4] Generating official NVS partition (1.2T)...
 python "%NVS_TOOL%" generate release\JingleMiner1.2T.cvs build\nvs_1.2T_official.bin 0x6000
-if errorlevel 1 (
+set "cmd_err=!errorlevel!"
+if not "!cmd_err!"=="0" (
     echo Error: NVS partition generation failed (1.2T).
     pause
     exit /b 1
@@ -67,7 +69,8 @@ if errorlevel 1 (
 echo [4/4] Merging full firmware image (1.2T Official NVS)...
 esptool.py --chip esp32s3 merge_bin --flash_mode dio --flash_size 16MB --flash_freq 80m 0x0 build\bootloader\bootloader.bin 0x8000 build\partition_table\partition-table.bin 0x9000 build\nvs_1.2T_official.bin 0x10000 build\esp-miner.bin 0x410000 build\www.bin 0xf10000 build\ota_data_initial.bin -o release\BTC_Solo_Lite_1.2T.bin
 
-if errorlevel 1 (
+set "cmd_err=!errorlevel!"
+if not "!cmd_err!"=="0" (
     echo Error: Firmware merge failed (1.2T).
     echo Hint: Ensure this script runs in an ESP-IDF environment.
 ) else (
@@ -90,7 +93,8 @@ if not exist "build\esp-miner.bin" (
     echo Building firmware...
     idf.py set-target esp32s3
     idf.py build
-    if errorlevel 1 (
+    set "cmd_err=!errorlevel!"
+    if not "!cmd_err!"=="0" (
         echo Error: Firmware build failed.
         pause
         exit /b 1
@@ -99,7 +103,8 @@ if not exist "build\esp-miner.bin" (
 
 echo [2/4] Generating official NVS partition (4.8T)...
 python "%NVS_TOOL%" generate release\JingleMiner4.8T.cvs build\nvs_4.8T_official.bin 0x6000
-if errorlevel 1 (
+set "cmd_err=!errorlevel!"
+if not "!cmd_err!"=="0" (
     echo Error: NVS partition generation failed (4.8T).
     pause
     exit /b 1
@@ -108,7 +113,8 @@ if errorlevel 1 (
 echo [4/4] Merging full firmware image (4.8T Official NVS)...
 esptool.py --chip esp32s3 merge_bin --flash_mode dio --flash_size 16MB --flash_freq 80m 0x0 build\bootloader\bootloader.bin 0x8000 build\partition_table\partition-table.bin 0x9000 build\nvs_4.8T_official.bin 0x10000 build\esp-miner.bin 0x410000 build\www.bin 0xf10000 build\ota_data_initial.bin -o release\BTC_Solo_Pro_4.8T.bin
 
-if errorlevel 1 (
+set "cmd_err=!errorlevel!"
+if not "!cmd_err!"=="0" (
     echo Error: Firmware merge failed (4.8T).
     echo Hint: Ensure this script runs in an ESP-IDF environment.
 ) else (
