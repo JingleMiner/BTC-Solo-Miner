@@ -749,8 +749,14 @@ void DisplayDriver::buttonsInit(void)
 
     // Habilita las interrupciones de GPIO
     gpio_install_isr_service(0);
+    // Map the physical buttons to logical handlers; 4.8T boards need the mapping reversed.
+#if defined(NERDQAXEPLUS2)
+    gpio_isr_handler_add(PIN_BUTTON_1, button2IsrHandler, (void*) this);
+    gpio_isr_handler_add(PIN_BUTTON_2, button1IsrHandler, (void*) this);
+#else
     gpio_isr_handler_add(PIN_BUTTON_1, button1IsrHandler, (void*) this);
     gpio_isr_handler_add(PIN_BUTTON_2, button2IsrHandler, (void*) this);
+#endif
 }
 
 /**
